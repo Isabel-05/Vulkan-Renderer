@@ -1,31 +1,42 @@
 
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
+
 #include <iostream>
 
-#pragma once
-#include <GLFW/include/glfw3.h>
+#include "VulkanRenderer.h"
 
-#include "Renderer.h"
+GLFWwindow* window;
+VulkanRenderer renderer;
 
+void initWindow(std::string wName = "Test Window", const int width = 800, const int height = 600)
+{
+	glfwInit();
+	//set glfw to not use OpenGL
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	//set to not resizable
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-
-GLFWwindow* initWindow(uint32_t Width = 800, uint32_t Height = 600) {
-    glfwInit();
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-    return glfwCreateWindow(Width, Height, "Hello Triangle", nullptr, nullptr);
+	window = glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
 }
 
 int main()
 {
-    GLFWwindow* window = initWindow();
+	initWindow("Hello Triangle");
 
+	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; };
 
-    while (!glfwWindowShouldClose(window))
-    {
-        glfwPollEvents();
-    }
+	//event loop until user closes window
+	while (!glfwWindowShouldClose(window)) 
+	{
+		glfwPollEvents();
 
-    glfwDestroyWindow(window); 
+	}
+
+	renderer.cleanup();
+
+	glfwDestroyWindow(window);
 }
