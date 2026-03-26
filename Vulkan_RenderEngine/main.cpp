@@ -1,18 +1,9 @@
-
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/mat4x4.hpp>
-
+#pragma once
 #include <iostream>
 
-#include "VulkanRenderer.h"
+#include "Renderer.h"
 
-GLFWwindow* window;
-VulkanRenderer renderer;
-
-void initWindow(std::string wName = "Test Window", const int width = 800, const int height = 600)
+GLFWwindow* initWindow(std::string wName = "Test Window", const int width = 800, const int height = 600)
 {
 	glfwInit();
 	//set glfw to not use OpenGL
@@ -20,12 +11,14 @@ void initWindow(std::string wName = "Test Window", const int width = 800, const 
 	//set to not resizable
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-	window = glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
+	return glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
 }
 
 int main()
 {
-	initWindow("Hello Triangle");
+	GLFWwindow* window = initWindow("Hello Triangle");
+
+	VulkanRenderer renderer;
 
 	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; };
 
