@@ -20,7 +20,10 @@ int main()
 
 	VulkanRenderer renderer;
 
-	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; };
+	if (renderer.init(window) == EXIT_FAILURE)
+	{ 
+		return EXIT_FAILURE; 
+	}
 
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
