@@ -41,6 +41,8 @@ private:
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 
+	VkPipelineLayout pipelineLayout;
+
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
@@ -59,6 +61,7 @@ private:
 	void createSurface();
 	void createSwapchain();
 	void createImageViews();
+	void createRenderPass();
 
 	void createGraphicsPipeline();
 
