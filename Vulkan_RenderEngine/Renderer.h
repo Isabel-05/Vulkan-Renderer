@@ -16,8 +16,6 @@ public:
 	int init(GLFWwindow* newWindow);
 	void cleanup();
 
-	
-
 private:
 
 	GLFWwindow* window;
@@ -38,6 +36,7 @@ private:
 
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;
+	std::vector<VkImageView> swapChainImageViews;
 
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
@@ -55,12 +54,13 @@ private:
 
 	//createFunctions
 	void createInstance();
+	void getPhysicalDevice();
 	void createLogicalDevice();
 	void createSurface();
 	void createSwapchain();
+	void createImageViews();
 
-	//get Functions
-	void getPhysicalDevice();
+	void createGraphicsPipeline();
 
 	//support Functions
 	bool checkInstanceExtensionSupport(std::vector<const char*> *extensionsToCheck);
@@ -69,6 +69,9 @@ private:
 	QueueFamilyIndices getQueueFamilyIndices(VkPhysicalDevice device);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 	bool checkValidationLayerSupport();
+
+	static std::vector<char> readFile(const std::string& filename);
+	VkShaderModule createShaderModule(const std::vector<char>& code);
 
 	//swap chain choose functions
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
