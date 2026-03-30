@@ -39,6 +39,9 @@ private:
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;
 
+	VkFormat swapChainImageFormat;
+	VkExtent2D swapChainExtent;
+
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
