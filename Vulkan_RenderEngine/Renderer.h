@@ -10,11 +10,15 @@
 class VulkanRenderer
 {
 public:
+	//interface Functions
+
 	VulkanRenderer();
 	~VulkanRenderer();
 
 	int init(GLFWwindow* newWindow);
 	void cleanup();
+
+	void drawFrame();
 
 private:
 
@@ -37,11 +41,21 @@ private:
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;
 	std::vector<VkImageView> swapChainImageViews;
+	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 
+	VkPipeline graphicsPipeline;
+	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
+
+	VkCommandPool commandPool;
+	VkCommandBuffer commandBuffer;
+
+	VkSemaphore imageAvailableSemaphore;
+	VkSemaphore renderFinishedSemaphore;
+	VkFence inFlightFence;
 
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -64,6 +78,10 @@ private:
 	void createRenderPass();
 
 	void createGraphicsPipeline();
+	void createFramebuffers();
+	void createCommandPool();
+	void createCommandBuffer();
+	void createSyncObjects();
 
 	//support Functions
 	bool checkInstanceExtensionSupport(std::vector<const char*> *extensionsToCheck);
@@ -75,6 +93,8 @@ private:
 
 	static std::vector<char> readFile(const std::string& filename);
 	VkShaderModule createShaderModule(const std::vector<char>& code);
+
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
 	//swap chain choose functions
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
