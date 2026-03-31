@@ -31,6 +31,7 @@ int main()
 		glfwPollEvents();
 		renderer.drawFrame();
 	}
+	vkDeviceWaitIdle(renderer.mainDevice.logicalDevice);
 
 	renderer.cleanup();
 

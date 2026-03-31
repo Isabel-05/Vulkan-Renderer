@@ -20,18 +20,20 @@ public:
 
 	void drawFrame();
 
+	//public Components
+	struct
+	{
+		VkPhysicalDevice physicalDevice;
+		VkDevice logicalDevice;
+	}
+	mainDevice;
+
 private:
 
 	GLFWwindow* window;
 
 	//Vulkan Components
 	VkInstance instance;
-	struct
-	{
-		VkPhysicalDevice physicalDevice;
-		VkDevice logicalDevice;
-	} 
-	mainDevice;
 
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
