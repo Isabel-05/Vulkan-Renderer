@@ -30,6 +30,9 @@ public:
 
 private:
 
+	const int MAX_FRAMES_IN_FLIGHT = 2;	
+	uint32_t currentFrame = 0;
+
 	GLFWwindow* window;
 
 	//Vulkan Components
@@ -47,17 +50,18 @@ private:
 
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
+	uint32_t swapChainImageCount;
 
 	VkPipeline graphicsPipeline;
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
 
 	VkCommandPool commandPool;
-	VkCommandBuffer commandBuffer;
+	std::vector<VkCommandBuffer> commandBuffers;
 
-	VkSemaphore imageAvailableSemaphore;
-	VkSemaphore renderFinishedSemaphore;
-	VkFence inFlightFence;
+	std::vector<VkSemaphore> imageAvailableSemaphores;
+	std::vector<VkSemaphore> renderFinishedSemaphores;
+	std::vector<VkFence> inFlightFences;
 
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -82,7 +86,7 @@ private:
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
-	void createCommandBuffer();
+	void createCommandBuffers();
 	void createSyncObjects();
 
 	//support Functions
