@@ -9,9 +9,15 @@ GLFWwindow* initWindow(std::string wName = "Test Window", const int width = 800,
 	//set glfw to not use OpenGL
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	//set to not resizable
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 	return glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
+}
+
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) 
+{
+	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
+	app->framebufferResized = true;
 }
 
 int main()
@@ -19,6 +25,9 @@ int main()
 	GLFWwindow* window = initWindow("Hello Triangle");
 
 	VulkanRenderer renderer;
+
+	glfwSetWindowUserPointer(window, &renderer);
+	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 
 	if (renderer.init(window) == EXIT_FAILURE)
 	{ 

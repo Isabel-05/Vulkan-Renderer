@@ -19,6 +19,7 @@ public:
 	void cleanup();
 
 	void drawFrame();
+	void updateUniformBuffer(uint32_t currentImage);
 
 	//public Components
 	struct
@@ -27,6 +28,8 @@ public:
 		VkDevice logicalDevice;
 	}
 	mainDevice;
+
+	bool framebufferResized = false;
 
 private:
 
@@ -54,10 +57,21 @@ private:
 
 	VkPipeline graphicsPipeline;
 	VkRenderPass renderPass;
+	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
+
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
 
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	std::vector<VkBuffer> uniformBuffers;
+	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	std::vector<void*> uniformBuffersMapped;
 
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -82,10 +96,17 @@ private:
 	void createSwapchain();
 	void createImageViews();
 	void createRenderPass();
+	void createDescriptorSetLayout();
+	void createDescriptorPool();
+	void createDescriptorSets();
 
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
+	void createVertexBuffer();
+	void createIndexBuffer();
+	void createUniformBuffers();
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 	void createCommandBuffers();
 	void createSyncObjects();
 
@@ -96,6 +117,10 @@ private:
 	QueueFamilyIndices getQueueFamilyIndices(VkPhysicalDevice device);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 	bool checkValidationLayerSupport();
+	void cleanupSwapChain();
+	void recreateSwapChain();
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 	static std::vector<char> readFile(const std::string& filename);
 	VkShaderModule createShaderModule(const std::vector<char>& code);
