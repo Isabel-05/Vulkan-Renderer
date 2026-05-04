@@ -10,6 +10,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
+
 #include <chrono>
 #include <iostream>
 #include <fstream>
@@ -24,13 +27,13 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-struct Vertex 
+struct Vertex
 {
 	glm::vec3 pos;
 	glm::vec3 color;
 	glm::vec2 texCoord;
 
-	static VkVertexInputBindingDescription getBindingDescription() 
+	static VkVertexInputBindingDescription getBindingDescription()
 	{
 		VkVertexInputBindingDescription bindingDescription{};
 		bindingDescription.binding = 0;
@@ -41,7 +44,7 @@ struct Vertex
 		return bindingDescription;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() 
+	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
 	{
 		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 		//position
@@ -64,23 +67,11 @@ struct Vertex
 	}
 };
 
-const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/Wolf_student_girl.obj";
+const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/WolfGirl_Base.png";
 
-	{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-	{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-	{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-	{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-};
-
-const std::vector<uint16_t> indices = {
-	0, 1, 2, 2, 3, 0,
-	4, 5, 6, 6, 7, 4
-};
-
+//const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/viking_room.obj";
+//const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/viking_room.png";
 
 struct UniformBufferObject {
 	glm::mat4 model;
@@ -113,6 +104,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createDescriptorSetLayout();
 		createGraphicsPipeline();
 		createCommandPool();
+		loadModel();
 		createDepthResources();
 		createFramebuffers();
 		createTextureImage();
@@ -178,7 +170,7 @@ void VulkanRenderer::cleanup()
 	}
 
 	vkDestroyCommandPool(mainDevice.logicalDevice, commandPool, nullptr);
-	
+
 	vkDestroyDevice(mainDevice.logicalDevice, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
@@ -254,6 +246,46 @@ void VulkanRenderer::drawFrame()
 	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void VulkanRenderer::loadModel()
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+	std::string warn;
+
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+		throw std::runtime_error(err);
+	}
+
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			Vertex vertex{};
+
+			vertex.pos = {
+				attrib.vertices[3 * index.vertex_index + 0],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]
+			};
+
+			vertex.texCoord = {
+				attrib.texcoords[2 * index.texcoord_index + 0],
+				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+			};
+
+			vertex.color = { 1.0f, 1.0f, 1.0f };
+
+			vertices.push_back(vertex);
+			indices.push_back(indices.size());
+		}
+	}
+
+	for (auto& vertex : vertices) {
+		vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, .0f, 0.0f));
+		vertex.pos.z -= 1.5f;
+	}
 }
 
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage)
@@ -341,7 +373,7 @@ void VulkanRenderer::createImage(uint32_t width, uint32_t height, VkFormat forma
 void VulkanRenderer::createTextureImage()
 {
 	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 	if (!pixels) {
@@ -360,7 +392,7 @@ void VulkanRenderer::createTextureImage()
 	stbi_image_free(pixels);
 
 	createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
-	
+
 	//transition layout into optimal Destination layout
 	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -458,7 +490,7 @@ void VulkanRenderer::createInstance()
 	}
 
 	//Check if instance extensions are supported
-	if (!checkInstanceExtensionSupport(&instanceExtensions)) 
+	if (!checkInstanceExtensionSupport(&instanceExtensions))
 	{
 		throw std::runtime_error("VkInstance does not support one or more instance extensions");
 	}
@@ -480,7 +512,7 @@ void VulkanRenderer::createInstance()
 	//Actually Create Instance from created Info struct (stored in instance variable)
 	VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
 
-	if (result != VK_SUCCESS) 
+	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create Vulkan Instanc");
 	}
@@ -520,7 +552,7 @@ void VulkanRenderer::createLogicalDevice()
 	else {
 		deviceCreateInfo.enabledLayerCount = 0;
 	}
-	
+
 	//physical device features the logical device will be using
 	VkPhysicalDeviceFeatures deviceFeatures = {};
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
@@ -616,7 +648,7 @@ void VulkanRenderer::createImageViews()
 {
 	swapChainImageViews.resize(swapChainImages.size());
 
-	for (size_t i = 0; i < swapChainImages.size(); i++) 
+	for (size_t i = 0; i < swapChainImages.size(); i++)
 	{
 		VkImageViewCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -636,7 +668,7 @@ void VulkanRenderer::createImageViews()
 		createInfo.subresourceRange.baseArrayLayer = 0;
 		createInfo.subresourceRange.layerCount = 1;
 
-		
+
 		//create imageview
 		if (vkCreateImageView(mainDevice.logicalDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image views!");
@@ -859,7 +891,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	//set our dynamic viewport and scissor
 	VkViewport viewport{};
@@ -875,7 +907,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.offset = { 0, 0 };
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	
+
 	//bind descriptor sets (for passing uniform buffer data to shaders)
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
@@ -1169,7 +1201,7 @@ void VulkanRenderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, V
 	bufferInfo.usage = usage;
 	//only used by graphics queue family, no sharing between multiple queue families
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	bufferInfo.flags = 0;	
+	bufferInfo.flags = 0;
 
 	if (vkCreateBuffer(mainDevice.logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create vertex buffer!");
@@ -1226,12 +1258,12 @@ void VulkanRenderer::createCommandBuffers()
 }
 
 void VulkanRenderer::getPhysicalDevice()
-{ 
+{
 	//get number of available physical devices (GPUs)
 	uint32_t physDeviceCount = 0;
 	vkEnumeratePhysicalDevices(instance, &physDeviceCount, nullptr);
 
-	if(physDeviceCount == 0)
+	if (physDeviceCount == 0)
 	{
 		throw std::runtime_error("Cant find GPUs that support Vulkan instance");
 	}
@@ -1262,7 +1294,7 @@ bool VulkanRenderer::checkInstanceExtensionSupport(std::vector<const char*>* ext
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
 	//check if the given extensions are in list of available extensions
-	for (const auto &extensionToCheck : *extensionsToCheck)
+	for (const auto& extensionToCheck : *extensionsToCheck)
 	{
 		bool hasExtension = false;
 		for (const auto& extension : extensions)
