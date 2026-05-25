@@ -10,15 +10,15 @@ void Swapchain::createSwapchain(VulkanContext& context)
 
 	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-	VkExtent2D extent = chooseSwapExtent(context, swapChainSupport.capabilities);
+	VkExtent2D swapChainExtent = chooseSwapExtent(context, swapChainSupport.capabilities);
 
-	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+	uint32_t swapChainimageCount = swapChainSupport.capabilities.minImageCount + 1;
 
-	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-		imageCount = swapChainSupport.capabilities.maxImageCount;
+	if (swapChainSupport.capabilities.maxImageCount > 0 && swapChainimageCount > swapChainSupport.capabilities.maxImageCount) {
+		swapChainimageCount = swapChainSupport.capabilities.maxImageCount;
 	}
 
-	imageCount = imageCount;
+	imageCount = swapChainimageCount;
 
 	//Info struct
 	VkSwapchainCreateInfoKHR createInfo{};
@@ -27,7 +27,7 @@ void Swapchain::createSwapchain(VulkanContext& context)
 	createInfo.minImageCount = imageCount;
 	createInfo.imageFormat = surfaceFormat.format;
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = extent;
+	createInfo.imageExtent = swapChainExtent;
 	createInfo.imageArrayLayers = 1; //always one unless youre working on a 3d stereoscopic apllication
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //specifies what the image in the swap chain will be used for (rendering on screen/into file etc)
 
@@ -68,7 +68,7 @@ void Swapchain::createSwapchain(VulkanContext& context)
 
 	//save format and extent in member
 	imageFormat = surfaceFormat.format;
-	extent = extent;
+	extent = swapChainExtent;
 }
 
 void Swapchain::createImageViews(VulkanContext& context)

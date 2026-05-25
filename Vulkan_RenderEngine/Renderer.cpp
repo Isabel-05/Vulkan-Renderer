@@ -49,13 +49,6 @@ void VulkanRenderer::cleanup()
 
 	testObject.cleanup(context);
 
-	//vkDestroySampler(logicalDevice, textureSampler, nullptr);
-	//vkDestroyImageView(logicalDevice, textureImageView, nullptr);
-
-	//vkDestroyImage(logicalDevice, textureImage, nullptr);
-	//vkFreeMemory(logicalDevice, textureImageMemory, nullptr);
-
-
 	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
 
