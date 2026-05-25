@@ -13,12 +13,12 @@ struct UniformBufferObject {
 class FrameData
 {
 public:
-	FrameData();
-	~FrameData();
+	FrameData() = default;
+	~FrameData() = default;
 
-	void cleanup(VulkanContext& context);
+	void cleanup(VulkanContext& context, size_t imageCount);
 
-	uint32_t maxFramesInFlight;
+	uint32_t maxFramesInFlight = 2;
 
 	std::vector<VkCommandBuffer> commandBuffers;
 	std::vector<VkDeviceMemory> commandBuffersMemory;
@@ -31,9 +31,17 @@ public:
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
 
+	VkDescriptorPool descriptorPool;
+	VkDescriptorSetLayout descriptorSetLayout;
+	std::vector<VkDescriptorSet> descriptorSets;
+
 
 	void createUniformBuffers(VulkanContext& context);
 	void createCommandBuffers(VulkanContext& context, CommandPool& cmdPool);
 	void createSyncObjects(VulkanContext& context, size_t imageCount);
+
+	void createDescriptorSetLayout(VulkanContext& context);
+	void createDescriptorPool(VulkanContext& context);
+	void createDescriptorSets(VulkanContext& context, VkImageView& textureImageView, VkSampler& textureSampler);
 };
 

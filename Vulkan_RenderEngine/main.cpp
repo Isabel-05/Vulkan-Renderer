@@ -1,7 +1,8 @@
 #pragma once
+#include "Renderer.h"
+
 #include <iostream>
 
-#include "Renderer.h"
 
 GLFWwindow* initWindow(std::string wName = "Test Window", const int width = 800, const int height = 600)
 {
@@ -41,7 +42,7 @@ int main()
 		renderer.drawFrame();
 	}
 
-	vkDeviceWaitIdle(renderer.logicalDevice);
+	vkDeviceWaitIdle(renderer.context.logicalDevice);
 
 	renderer.cleanup();
 

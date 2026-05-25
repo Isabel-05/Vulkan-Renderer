@@ -1,6 +1,5 @@
 #pragma once
 #include "RenderObject.h"
-
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
 
@@ -47,3 +46,16 @@ namespace ModelUtil
 	}
 }
 
+void Material::cleanup(VulkanContext& context)
+{
+	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
+	vkDestroyImageView(context.logicalDevice, textureImageViews, nullptr);
+
+	vkDestroyImage(context.logicalDevice, textures, nullptr);
+	vkFreeMemory(context.logicalDevice, textureMemories, nullptr);
+}
+
+void RenderObject::cleanup(VulkanContext& context)
+{
+	material.cleanup(context);
+}

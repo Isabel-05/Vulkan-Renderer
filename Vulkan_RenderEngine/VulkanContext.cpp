@@ -27,6 +27,13 @@ void VulkanContext::init(GLFWwindow* newWindow)
 	}
 }
 
+void VulkanContext::cleanup()
+{
+	vkDestroyDevice(logicalDevice, nullptr);
+	vkDestroySurfaceKHR(instance, surface, nullptr);
+	vkDestroyInstance(instance, nullptr);
+}
+
 
 void VulkanContext::createInstance()
 {

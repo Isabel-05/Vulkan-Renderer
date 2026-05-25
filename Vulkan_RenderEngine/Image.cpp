@@ -50,7 +50,9 @@ namespace ImageUtils
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		//VK_FORMAT_R8G8B8A8_SRGB
 		viewInfo.format = format;
+		//VK_IMAGE_ASPECT_COLOR_BIT
 		viewInfo.subresourceRange.aspectMask = aspectFlags;
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = 1;

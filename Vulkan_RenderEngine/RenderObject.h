@@ -1,7 +1,8 @@
 #pragma once
+#include "VulkanContext.h"
 #include "Vertex.h"
-#include <vector>
 #include <string>
+
 
 namespace ModelUtil
 {
@@ -17,9 +18,10 @@ struct Mesh
 
 struct Material
 {
-	std::vector<VkImage> textures;
-	std::vector<VkDeviceMemory> textureMemories;	
-	std::vector<VkImageView> textureImageViews;
+	void cleanup(VulkanContext& context);
+	VkImage textures;
+	VkDeviceMemory textureMemories;	
+	VkImageView textureImageViews;
 	VkSampler textureSampler;
 	std::string shaderPath;
 };
@@ -28,7 +30,7 @@ class RenderObject
 {
 public:
 	void init(std::string modelPath, std::vector<std::string> texturePaths, std::string shaderPath);
-	void destroy();
+	void cleanup(VulkanContext& context);
 
 	Mesh mesh;
 	Material material;
