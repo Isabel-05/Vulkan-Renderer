@@ -41,7 +41,7 @@ int main()
 		renderer.drawFrame();
 	}
 
-	vkDeviceWaitIdle(renderer.mainDevice.logicalDevice);
+	vkDeviceWaitIdle(renderer.logicalDevice);
 
 	renderer.cleanup();
 

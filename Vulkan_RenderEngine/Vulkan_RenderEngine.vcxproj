@@ -130,13 +130,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BufferUtils.cpp" />
+    <ClCompile Include="CommandPool.cpp" />
+    <ClCompile Include="GraphicsState.cpp" />
+    <ClCompile Include="Image.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="RenderObject.cpp" />
+    <ClCompile Include="Swapchain.cpp" />
+    <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="VulkanContext.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BufferUtils.h" />
+    <ClInclude Include="CommandPool.h" />
+    <ClInclude Include="GraphicsState.h" />
+    <ClInclude Include="Image.h" />
     <ClInclude Include="Renderer.h" />
-    <ClInclude Include="Utilities.h" />
+    <ClInclude Include="RenderObject.h" />
+    <ClInclude Include="Swapchain.h" />
+    <ClInclude Include="Vertex.h" />
     <ClInclude Include="VulkanContext.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
