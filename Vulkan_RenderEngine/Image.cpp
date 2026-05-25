@@ -44,7 +44,7 @@ namespace ImageUtils
 		vkBindImageMemory(context.logicalDevice, image, imageMemory, 0);
 	}
 
-	VkImageView createImageView(VulkanContext& context, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+	void createImageView(VulkanContext& context, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, VkImageView& imageView)
 	{
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -57,18 +57,13 @@ namespace ImageUtils
 		viewInfo.subresourceRange.baseArrayLayer = 0;
 		viewInfo.subresourceRange.layerCount = 1;
 
-		VkImageView imageView;
 		if (vkCreateImageView(context.logicalDevice, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image view!");
 		}
-
-		return imageView;
 	}
 
-	VkImage createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath)
+	void createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath, VkImage& textureImage, VkDeviceMemory& textureImageMemory)
 	{
-		VkImage textureImage;
-		VkDeviceMemory textureImageMemory;
 
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(texPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -102,14 +97,10 @@ namespace ImageUtils
 
 		vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
-
-		return textureImage;
 	}
 
-	VkSampler createImageSampler(VulkanContext& context)
+	void createImageSampler(VulkanContext& context, VkSampler& textureSampler)
 	{
-		VkSampler textureSampler;
-
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		samplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -135,8 +126,6 @@ namespace ImageUtils
 		if (vkCreateSampler(context.logicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture sampler!");
 		}
-
-		return textureSampler;
 	}
 
 	void transitionImageLayout(VulkanContext& context, CommandPool& cmdPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)

@@ -22,11 +22,7 @@ const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Grap
 //const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/viking_room.obj";
 //const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/viking_room.png";
 
-struct UniformBufferObject {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
-};
+
 
 
 VulkanRenderer::VulkanRenderer()
@@ -211,34 +207,6 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage)
 	ubo.proj[1][1] *= -1;
 
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
-}
-
-void VulkanRenderer::createSyncObjects()
-{
-	imageAvailableSemaphores.resize(imageCount);
-	renderFinishedSemaphores.resize(imageCount);
-	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-
-
-	VkSemaphoreCreateInfo semaphoreInfo{};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-	VkFenceCreateInfo fenceInfo{};
-	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT; // makes sure the first draw call doesnt infinitely wait
-
-	for (size_t i = 0; i < imageCount; i++) {
-		if (vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS) {
-
-			throw std::runtime_error("failed to create synchronization objects for a frame!");
-		}
-	}
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create synchronization objects for a frame!");
-		}
-	}
 }
 
 void VulkanRenderer::createRenderPass()
@@ -693,36 +661,6 @@ void VulkanRenderer::createIndexBuffer()
 
 	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
 	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
-}
-
-void VulkanRenderer::createUniformBuffers()
-{
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-	uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-	uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-	uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
-
-		vkMapMemory(logicalDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
-	}
-}
-
-void VulkanRenderer::createCommandBuffers()
-{
-	commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = commandPool;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
-
-	if (vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate command buffers!");
-	}
 }
 
 std::vector<char> VulkanRenderer::readFile(const std::string& filename)

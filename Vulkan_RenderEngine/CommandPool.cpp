@@ -14,7 +14,7 @@ void CommandPool::create(VulkanContext& context)
 	}
 }
 
-void CommandPool::destroy(VulkanContext& context)
+void CommandPool::cleanup(VulkanContext& context)
 {
 	vkDestroyCommandPool(context.logicalDevice, handle, nullptr);
 }

@@ -52,6 +52,7 @@ public:
 
 
 	void init(GLFWwindow* newWindow);
+	void cleanup();
 
 	void createInstance();
 	void getPhysicalDevice();

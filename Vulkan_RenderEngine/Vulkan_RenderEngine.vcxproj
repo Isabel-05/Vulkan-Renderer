@@ -132,6 +132,7 @@
   <ItemGroup>
     <ClCompile Include="BufferUtils.cpp" />
     <ClCompile Include="CommandPool.cpp" />
+    <ClCompile Include="FrameData.cpp" />
     <ClCompile Include="GraphicsState.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="main.cpp" />
@@ -144,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="BufferUtils.h" />
     <ClInclude Include="CommandPool.h" />
+    <ClInclude Include="FrameData.h" />
     <ClInclude Include="GraphicsState.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="Renderer.h" />

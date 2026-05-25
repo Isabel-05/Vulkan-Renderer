@@ -9,7 +9,7 @@ public:
 	~CommandPool() = default;
 
     void create(VulkanContext& context);
-    void destroy(VulkanContext& context);
+    void cleanup(VulkanContext& context);
 
     VkCommandBuffer beginSingleTimeCommands(VulkanContext& context);
     void endSingleTimeCommands(VulkanContext& context, VkCommandBuffer commandBuffer);

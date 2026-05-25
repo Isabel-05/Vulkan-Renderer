@@ -42,14 +42,6 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<VkDeviceMemory> uniformBuffersMemory;
-	std::vector<void*> uniformBuffersMapped;
-
-	std::vector<VkSemaphore> imageAvailableSemaphores;
-	std::vector<VkSemaphore> renderFinishedSemaphores;
-	std::vector<VkFence> inFlightFences;
-
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
 	VkImageView textureImageView;
@@ -65,11 +57,6 @@ private:
 	void createGraphicsPipeline();
 	void createVertexBuffer();
 	void createIndexBuffer();
-	void createUniformBuffers();
-	void createCommandBuffers();
-	void createSyncObjects();
-
-	void loadModel();
 
 	static std::vector<char> readFile(const std::string& filename);
 	VkShaderModule createShaderModule(const std::vector<char>& code);
