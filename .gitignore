@@ -66,7 +66,14 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
-imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_impl_glfw.cpp imgui_impl_vulkan.cpp imgui_tables.cpp imgui_widgets.cpp ImGuiRenderer.cpp
+Vulkan_RenderEngine/imgui.cpp
+Vulkan_RenderEngine/imgui_demo.cpp 
+Vulkan_RenderEngine/imgui_draw.cpp 
+Vulkan_RenderEngine/imgui_impl_glfw.cpp 
+Vulkan_RenderEngine/imgui_impl_vulkan.cpp 
+Vulkan_RenderEngine/imgui_tables.cpp 
+Vulkan_RenderEngine/imgui_widgets.cpp 
+Vulkan_RenderEngine/ImGuiRenderer.cpp
 
 # StyleCop
 StyleCopReport.xml
