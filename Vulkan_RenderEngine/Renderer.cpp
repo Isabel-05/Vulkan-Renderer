@@ -12,7 +12,7 @@ const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Grap
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
 	try {
-
+		camera = Camera();
 		context.init(newWindow);
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
@@ -66,7 +66,7 @@ void VulkanRenderer::cleanup()
 	context.cleanup();
 }
 
-void VulkanRenderer::drawFrame()
+void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
 
 	vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -83,7 +83,7 @@ void VulkanRenderer::drawFrame()
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	updateUniformBuffer(currentFrame);
+	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
 	vkResetFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame]);
 
@@ -136,18 +136,23 @@ void VulkanRenderer::drawFrame()
 	currentFrame = (currentFrame + 1) % frameData.maxFramesInFlight;
 }
 
-void VulkanRenderer::updateUniformBuffer(uint32_t currentImage)
+void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
-	static auto startTime = std::chrono::high_resolution_clock::now();
+	//static auto startTime = std::chrono::high_resolution_clock::now();
 
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	//auto currentTime = std::chrono::high_resolution_clock::now();
+	//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+	//UniformBufferObject ubo{};
+	//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 10.0f);
+	////different coordinate system in vulkan than opengl, so we flip the y coordinate of the clip space in the projection matrix
 
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 10.0f);
-	//different coordinate system in vulkan than opengl, so we flip the y coordinate of the clip space in the projection matrix
+	ubo.model = glm::mat4(1.0f);
+	ubo.view = viewMatrix;
+	ubo.proj = projectionMatrix;
 	ubo.proj[1][1] *= -1;
 
 	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));

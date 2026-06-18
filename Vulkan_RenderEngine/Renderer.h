@@ -5,29 +5,34 @@
 #include "Swapchain.h"
 #include "GraphicsState.h"
 #include "RenderObject.h"
+#include "Camera.h"
 
 class VulkanRenderer
 {
 public:
 
+	
 	VulkanRenderer() = default;
 	~VulkanRenderer() = default;
 
 	int init(GLFWwindow* newWindow);
 	void cleanup();
 
-	void drawFrame();
-	void updateUniformBuffer(uint32_t currentImage);
+	void drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
+	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 
 	bool framebufferResized = false;
 	VulkanContext context;
+	Swapchain swapChain;
+	RenderPass renderPass;
+	Camera camera;
 
 private:
 
 
-	Swapchain swapChain;
+
 	GraphicsPipeline graphicsPipeline;
-	RenderPass renderPass;
+
 	CommandPool commandPool;
 	FrameData frameData;
 

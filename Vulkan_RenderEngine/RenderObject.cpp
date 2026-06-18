@@ -39,10 +39,10 @@ namespace ModelUtil
 			}
 		}
 
-		//for (auto& vertex : vertices) {
-		//	vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, .0f, 0.0f));
-		//	vertex.pos.z -= 1.5f;
-		//}
+		for (auto& vertex : vertices) {
+			vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			vertex.pos.z -= 1.5f;
+		}
 	}
 }
 
