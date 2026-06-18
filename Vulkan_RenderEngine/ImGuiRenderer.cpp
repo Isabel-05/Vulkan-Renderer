@@ -179,6 +179,32 @@ void ImGuiRenderer::initResources()
 	// 1. Load the vertex and fragment shaders
 	// 2. Set up all the pipeline state (vertex input, input assembly, rasterization, etc.)
 	// 3. Include the renderingInfo in the pipeline creation to enable dynamic rendering
+
+	// Alpha blending
+	VkPipelineColorBlendAttachmentState blendState{};
+	blendState.blendEnable = VK_TRUE;
+	blendState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	blendState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blendState.colorBlendOp = VK_BLEND_OP_ADD;
+	blendState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	blendState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blendState.alphaBlendOp = VK_BLEND_OP_ADD;
+	blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	// No depth test
+	VkPipelineDepthStencilStateCreateInfo depthStencil{};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_FALSE;
+	depthStencil.depthWriteEnable = VK_FALSE;
+
+	// No backface culling
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.lineWidth = 1.0f;
 }
 
 void ImGuiRenderer::setStyle(uint32_t index)
