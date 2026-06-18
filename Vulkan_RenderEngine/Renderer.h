@@ -26,6 +26,7 @@ public:
 	Swapchain swapChain;
 	RenderPass renderPass;
 	Camera camera;
+	FrameData frameData;
 
 private:
 
@@ -34,7 +35,7 @@ private:
 	GraphicsPipeline graphicsPipeline;
 
 	CommandPool commandPool;
-	FrameData frameData;
+
 
 	RenderObject testObject;
 

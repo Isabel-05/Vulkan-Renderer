@@ -6,8 +6,10 @@
 #include <chrono>
 
 static ImGui_ImplVulkanH_Window g_MainWindowData;
+const int WIDTH = 1800;
+const int HEIGHT = 1200;
 
-GLFWwindow* initWindow(std::string wName = "Test Window", const int width = 1800, const int height = 1200)
+GLFWwindow* initWindow(std::string wName = "Test Window", const int width = WIDTH, const int height = HEIGHT)
 {
 	glfwInit();
 	//set glfw to not use OpenGL
@@ -91,83 +93,27 @@ int main()
 		return EXIT_FAILURE; 
 	}
 
-	ImGuiRenderer imguiRenderer;
-
-	int w, h;
-	glfwGetFramebufferSize(window, &w, &h);
-	ImGui_ImplVulkanH_Window* ImGui_window = &g_MainWindowData;
-	imguiRenderer.SetupVulkanWindow(ImGui_window, renderer, w, h);
-
-	imguiRenderer.init(renderer, ImGui_window);
-
-
-
-	bool show_demo_window = true;
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	ImGuiRenderer imguiRenderer(renderer);
+	imguiRenderer.init(WIDTH, HEIGHT);
 
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
 	{
-		static auto startTime = std::chrono::high_resolution_clock::now();
+		//static auto startTime = std::chrono::high_resolution_clock::now();
 
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		//auto currentTime = std::chrono::high_resolution_clock::now();
+		//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 		glfwPollEvents();
 
-		// Resize swap chain?
-		int fb_width, fb_height;
-		glfwGetFramebufferSize(window, &fb_width, &fb_height);
-		if (fb_width > 0 && fb_height > 0 && (renderer.framebufferResized || g_MainWindowData.Width != fb_width || g_MainWindowData.Height != fb_height))
-		{
-			ImGui_ImplVulkan_SetMinImageCount(renderer.swapChain.imageCount - 1);
-
-			ImGui_ImplVulkanH_CreateOrResizeWindow(
-				renderer.context.instance,
-				renderer.context.physicalDevice,
-				renderer.context.logicalDevice,
-				&g_MainWindowData,
-				renderer.context.getQueueFamilyIndices(renderer.context.physicalDevice).graphicsFamily,
-				nullptr /*allocator*/,
-				fb_width, fb_height,
-				renderer.swapChain.imageCount - 1);
-
-			g_MainWindowData.FrameIndex = 0;
-			renderer.framebufferResized = false;
-		}
-
-		//Start the Dear ImGui frame
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
-
-		ImGui::Render();
-		ImDrawData* draw_data = ImGui::GetDrawData();
-		const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-		if (!is_minimized)
-		{
-			ImGui_window->ClearValue.color.float32[0] = clear_color.x * clear_color.w;
-			ImGui_window->ClearValue.color.float32[1] = clear_color.y * clear_color.w;
-			ImGui_window->ClearValue.color.float32[2] = clear_color.z * clear_color.w;
-			ImGui_window->ClearValue.color.float32[3] = clear_color.w;
-			imguiRenderer.FrameRender(ImGui_window, renderer, draw_data);
-			imguiRenderer.FramePresent(ImGui_window, renderer);
-		}
-		ImGui::EndFrame();
-
-		//renderer.drawFrame(renderer.camera.getViewMatrix(), renderer.camera.getProjectionMatrix(renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 10.0f));
-
-
+		renderer.drawFrame(
+			renderer.camera.getViewMatrix(),
+			renderer.camera.getProjectionMatrix(renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 10.0f));
 	}
 
 	vkDeviceWaitIdle(renderer.context.logicalDevice);
 
 	imguiRenderer.cleanup();
-	ImGui_ImplVulkanH_DestroyWindow(renderer.context.instance, renderer.context.logicalDevice, &g_MainWindowData, nullptr /*allocator*/);
 	renderer.cleanup();
 
 
