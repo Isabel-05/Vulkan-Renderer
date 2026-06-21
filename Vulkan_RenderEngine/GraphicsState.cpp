@@ -1,16 +1,17 @@
 #pragma once
 #include "GraphicsState.h"
+#include "BufferUtils.h"
 #include "Vertex.h"
 
 #include <iostream>
 #include <fstream>
-void GraphicsPipeline::create(VulkanContext& context, VkRenderPass renderPass, VkDescriptorSetLayout& descriptorSetLayout)
+void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	auto vertShaderCode = readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/vert.spv");
-	auto fragShaderCode = readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/frag.spv");
+	auto vertShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/vert.spv");
+	auto fragShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/frag.spv");
 
-	VkShaderModule vertShaderModule = createShaderModule(context, vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(context, fragShaderCode);
+	VkShaderModule vertShaderModule = BufferUtils::createShaderModule(context, vertShaderCode);
+	VkShaderModule fragShaderModule = BufferUtils::createShaderModule(context, fragShaderCode);
 
 	//Pipeline: Vertex Stage info struct
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -144,8 +145,17 @@ void GraphicsPipeline::create(VulkanContext& context, VkRenderPass renderPass, V
 	depthStencil.front = {}; // Optional
 	depthStencil.back = {}; // Optional
 
+
+	VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo{};
+	pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+	pipelineRenderingInfo.colorAttachmentCount = 1;
+	pipelineRenderingInfo.pColorAttachmentFormats = &swapchainFormat;
+	pipelineRenderingInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.pNext = &pipelineRenderingInfo;
+	pipelineInfo.pDynamicState = &dynamicState;
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = shaderStages;
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -154,9 +164,8 @@ void GraphicsPipeline::create(VulkanContext& context, VkRenderPass renderPass, V
 	pipelineInfo.pRasterizationState = &rasterizer;
 	pipelineInfo.pMultisampleState = &multisampling;
 	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDynamicState = &dynamicState;
 	pipelineInfo.layout = pipelineLayout;
-	pipelineInfo.renderPass = renderPass;
+	pipelineInfo.renderPass = VK_NULL_HANDLE;
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -237,37 +246,4 @@ void RenderPass::create(VulkanContext& context, VkFormat imageFormat)
 void RenderPass::cleanup(VulkanContext& context)
 {
 	vkDestroyRenderPass(context.logicalDevice, handle, nullptr);
-}
-
-VkShaderModule GraphicsPipeline::createShaderModule(VulkanContext& context, const std::vector<char>& code)
-{
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = code.size();
-	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(context.logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create shader module!");
-	}
-	return shaderModule;
-}
-
-std::vector<char> GraphicsPipeline::readFile(const std::string& filename)
-{
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-		throw std::runtime_error("failed to open file!");
-	}
-
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-
-	file.close();
-
-	return buffer;
 }

@@ -8,4 +8,6 @@ namespace BufferUtils
 	void copyBufferToImage(VulkanContext& context, CommandPool& cmdPool, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	void copyBufferToImage(VulkanContext& context, VkCommandBuffer& cmdBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	void createBuffer(VulkanContext& context, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	std::vector<char> readFile(const std::string& filename);
+	VkShaderModule createShaderModule(VulkanContext& context, const std::vector<char>& code);
 }

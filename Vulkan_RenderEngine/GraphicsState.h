@@ -7,15 +7,11 @@ public:
 	GraphicsPipeline() = default;
 	~GraphicsPipeline() = default;
 
-	void create(VulkanContext& context, VkRenderPass renderPass, VkDescriptorSetLayout& descriptorSetLayout);
+	void create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& descriptorSetLayout);
 	void cleanup(VulkanContext& context);
 
 	VkPipeline handle;
 	VkPipelineLayout pipelineLayout;
-
-private:
-	VkShaderModule createShaderModule(VulkanContext& context, const std::vector<char>& code);
-	std::vector<char> readFile(const std::string& filename);
 };
 
 class RenderPass

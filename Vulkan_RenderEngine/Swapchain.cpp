@@ -111,42 +111,12 @@ void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPoo
 	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
-void Swapchain::createFramebuffers(VulkanContext& context, VkRenderPass renderPass)
-{
-	framebuffers.resize(imageViews.size());
-
-	//iterate through image views and create framebuffers from them
-	for (size_t i = 0; i < imageViews.size(); i++) {
-		std::array<VkImageView, 2> attachments = {
-			imageViews[i],
-			depthImageView
-		};
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = renderPass;
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = extent.width;
-		framebufferInfo.height = extent.height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(context.logicalDevice, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create framebuffer!");
-		}
-	}
-}
-
 void Swapchain::cleanupSwapChain(VulkanContext& context)
 {
 	vkDestroyImage(context.logicalDevice, depthImage, nullptr);
 	vkFreeMemory(context.logicalDevice, depthImageMemory, nullptr);
 	vkDestroyImageView(context.logicalDevice, depthImageView, nullptr);
 
-
-	for (auto framebuffer : framebuffers) {
-		vkDestroyFramebuffer(context.logicalDevice, framebuffer, nullptr);
-	}
 	//Each image view needs to be deleted individually
 	for (auto imageView : imageViews) {
 		vkDestroyImageView(context.logicalDevice, imageView, nullptr);
@@ -172,7 +142,6 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, 
 	createSwapchain(context);
 	createImageViews(context);
 	createDepthResources(context, cmdPool);
-	createFramebuffers(context, renderPass);
 }
 
 

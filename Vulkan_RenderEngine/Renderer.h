@@ -7,6 +7,8 @@
 #include "RenderObject.h"
 #include "Camera.h"
 
+class ImGuiRenderer;
+
 class VulkanRenderer
 {
 public:
@@ -22,6 +24,9 @@ public:
 	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 
 	bool framebufferResized = false;
+
+	ImGuiRenderer* guiRenderer;
+
 	VulkanContext context;
 	Swapchain swapChain;
 	RenderPass renderPass;
@@ -35,7 +40,6 @@ private:
 	GraphicsPipeline graphicsPipeline;
 
 	CommandPool commandPool;
-
 
 	RenderObject testObject;
 

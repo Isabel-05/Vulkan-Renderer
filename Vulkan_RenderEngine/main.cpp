@@ -93,9 +93,6 @@ int main()
 		return EXIT_FAILURE; 
 	}
 
-	ImGuiRenderer imguiRenderer(renderer);
-	imguiRenderer.init(WIDTH, HEIGHT);
-
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
 	{
@@ -113,7 +110,6 @@ int main()
 
 	vkDeviceWaitIdle(renderer.context.logicalDevice);
 
-	imguiRenderer.cleanup();
 	renderer.cleanup();
 
 

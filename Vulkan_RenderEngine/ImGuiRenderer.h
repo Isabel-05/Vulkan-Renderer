@@ -1,9 +1,22 @@
 #pragma once
-#include "Renderer.h"
+
+#include <vulkan/vulkan.h>
+#include <GLFW/include/glfw3.h>
+#include <vector>
+#include <stdexcept>
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+
+class VulkanRenderer;
+class VulkanContext;
 
 class ImGuiRenderer
 {
@@ -16,6 +29,7 @@ public:
 	void cleanup();                                            // Clean up ImGui resources and context
 	void initResources();                                    // Create all Vulkan resources for rendering
 	void setStyle(uint32_t index);                          // Apply visual styling themes
+	void initTexture();
 	void updateTexture(VkCommandBuffer& commandBuffer, ImTextureData* tex);                 // Dynamically update/create textures (v1.92+)
 
 	// Frame-by-frame rendering operations
@@ -73,7 +87,7 @@ private:
 
 	// Modern Vulkan rendering configuration
 	VkPipelineRenderingCreateInfo renderingInfo{};        // Dynamic rendering setup parameters
-	VkFormat colorFormat = VkFormat::VK_FORMAT_B8G8R8_UNORM;   // Target framebuffer format
+	VkFormat colorFormat = VkFormat::VK_FORMAT_B8G8R8A8_UNORM;   // Target framebuffer format
 
 };
 

@@ -1,4 +1,5 @@
 #include "ImGuiRenderer.h"
+#include "Renderer.h"
 #include "BufferUtils.h"
 #include "Image.h"
 
@@ -24,7 +25,7 @@ ImGuiRenderer::ImGuiRenderer(VulkanRenderer& renderer):
 		BufferUtils::createBuffer(
 			renderer.context,
 			1024 * sizeof(ImDrawVert),
-			VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			indexBuffers[i],
 			indexBufferMemories[i]);
@@ -71,11 +72,17 @@ void ImGuiRenderer::init(float width, float height)
 
 void ImGuiRenderer::cleanup()
 {
+
+	vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
+	vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
+	vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+
 	vkDestroySampler((*context).logicalDevice, sampler, nullptr);
 	vkDestroyDescriptorPool((*context).logicalDevice, descriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout((*context).logicalDevice, descriptorSetLayout, nullptr);
 	vkDestroyPipelineCache((*context).logicalDevice, pipelineCache, nullptr);
 	vkDestroyPipelineLayout((*context).logicalDevice, pipelineLayout, nullptr);
+	vkDestroyPipeline((*context).logicalDevice, pipeline, nullptr);
 	//vkDestroyPipeline((*context).logicalDevice, pipeline, nullptr);
 	for (size_t i = 0; i < vertexBuffers.size(); i++) {
 		vkDestroyBuffer((*context).logicalDevice, vertexBuffers[i], nullptr);
@@ -90,6 +97,7 @@ void ImGuiRenderer::cleanup()
 void ImGuiRenderer::initResources()
 {
 	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;  // Structure type identifier
 	samplerInfo.magFilter = VkFilter::VK_FILTER_LINEAR;                    // Smooth scaling when magnified
 	samplerInfo.minFilter = VkFilter::VK_FILTER_LINEAR;                    // Smooth scaling when minified
 	samplerInfo.mipmapMode = VkSamplerMipmapMode::VK_SAMPLER_MIPMAP_MODE_LINEAR;        // Smooth transitions between mip levels
@@ -105,6 +113,7 @@ void ImGuiRenderer::initResources()
 	VkDescriptorPoolSize poolSize{ VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
 
 	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;  // Structure type identifier
 	poolInfo.flags = VkDescriptorPoolCreateFlagBits::VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;     // Allow individual descriptor set freeing
 	poolInfo.maxSets = 2;                                                      // Maximum number of descriptor sets
 	poolInfo.poolSizeCount = 1;                                                // Number of pool size specifications
@@ -121,6 +130,7 @@ void ImGuiRenderer::initResources()
 	binding.binding = 0;                                                       // Shader binding point 0
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;  // Structure type identifier
 	layoutInfo.bindingCount = 1;                                               // Number of bindings in layout
 	layoutInfo.pBindings = &binding;                                           // Binding configuration array
 
@@ -129,6 +139,7 @@ void ImGuiRenderer::initResources()
 	// Allocate descriptor set from pool using the defined layout
 	// This creates the actual binding that connects GPU resources to shaders
 	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;  // Structure type identifier
 	allocInfo.descriptorPool = descriptorPool;                                // Source pool for allocation
 	allocInfo.descriptorSetCount = 1;                                          // Number of sets to allocate
 	VkDescriptorSetLayout layouts[] = { descriptorSetLayout };                // Layout template array
@@ -136,6 +147,8 @@ void ImGuiRenderer::initResources()
 
 	vkAllocateDescriptorSets((*context).logicalDevice, &allocInfo, &descriptorSet); // Allocate and store set
 
+
+	initTexture();
 	// Update descriptor set with actual font texture and sampler resources
 	// This final step connects the physical GPU resources to the shader binding points
 	VkDescriptorImageInfo imageInfo{};
@@ -144,6 +157,7 @@ void ImGuiRenderer::initResources()
 	imageInfo.sampler = sampler;                                              // Texture sampler
 
 	VkWriteDescriptorSet writeSet{};
+	writeSet.sType = VkStructureType::VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;  // Structure type identifier
 	writeSet.dstSet = descriptorSet;                                          // Target descriptor set
 	writeSet.descriptorCount = 1;                                              // Number of resources to bind
 	writeSet.descriptorType = VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;       // Resource type
@@ -152,8 +166,14 @@ void ImGuiRenderer::initResources()
 
 	vkUpdateDescriptorSets((*context).logicalDevice, 1, &writeSet, 0, nullptr);                   // Execute the binding update
 
+
+	////////////////////////////////////////////////
+	// Pipeline creation
+
+
 	// Create pipeline cache
 	VkPipelineCacheCreateInfo pipelineCacheInfo{};
+	pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 	vkCreatePipelineCache((*context).logicalDevice, &pipelineCacheInfo, nullptr, &pipelineCache);
 
 	// Create pipeline layout
@@ -163,6 +183,7 @@ void ImGuiRenderer::initResources()
 	pushConstantRange.size = sizeof(PushConstBlock);
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 1;
 	VkDescriptorSetLayout setLayouts[] = { descriptorSetLayout };
 	pipelineLayoutInfo.pSetLayouts = setLayouts;
@@ -171,16 +192,75 @@ void ImGuiRenderer::initResources()
 
 	vkCreatePipelineLayout((*context).logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
 
-	// Create the graphics pipeline with dynamic rendering
-	// ... (shader loading, pipeline state setup, etc.)
+	auto vertShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_vert.spv");
+	auto fragShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_frag.spv");
 
-	// For brevity, we're omitting the full pipeline creation code here
-	// In a real implementation, you would:
-	// 1. Load the vertex and fragment shaders
-	// 2. Set up all the pipeline state (vertex input, input assembly, rasterization, etc.)
-	// 3. Include the renderingInfo in the pipeline creation to enable dynamic rendering
+	VkShaderModule vertShaderModule = BufferUtils::createShaderModule((*context), vertShaderCode);
+	VkShaderModule fragShaderModule = BufferUtils::createShaderModule((*context), fragShaderCode);
 
-	// Alpha blending
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageInfo.module = fragShaderModule;
+	fragShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	VkVertexInputBindingDescription bindingDesc{};
+	bindingDesc.binding = 0;
+	bindingDesc.stride = sizeof(ImDrawVert);
+	bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription attrDescs[3]{};
+	attrDescs[0].location = 0;
+	attrDescs[0].binding = 0;
+	attrDescs[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attrDescs[0].offset = offsetof(ImDrawVert, pos);
+
+	attrDescs[1].location = 1;
+	attrDescs[1].binding = 0;
+	attrDescs[1].format = VK_FORMAT_R32G32_SFLOAT;
+	attrDescs[1].offset = offsetof(ImDrawVert, uv);
+
+	attrDescs[2].location = 2;
+	attrDescs[2].binding = 0;
+	attrDescs[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+	attrDescs[2].offset = offsetof(ImDrawVert, col);
+
+	VkPipelineVertexInputStateCreateInfo vertexInput{};
+	vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInput.vertexBindingDescriptionCount = 1;
+	vertexInput.pVertexBindingDescriptions = &bindingDesc;
+	vertexInput.vertexAttributeDescriptionCount = 3;
+	vertexInput.pVertexAttributeDescriptions = attrDescs;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	// Viewport state  both are dynamic so counts = 1, pointers = null
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	//anti aliasing
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.minSampleShading = 1.0f; // Optional
+	multisampling.pSampleMask = nullptr; // Optional
+	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToOneEnable = VK_FALSE; // Optional
+
 	VkPipelineColorBlendAttachmentState blendState{};
 	blendState.blendEnable = VK_TRUE;
 	blendState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -191,6 +271,17 @@ void ImGuiRenderer::initResources()
 	blendState.alphaBlendOp = VK_BLEND_OP_ADD;
 	blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
 		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &blendState;
+	colorBlending.blendConstants[0] = 0.0f; // Optional
+	colorBlending.blendConstants[1] = 0.0f; // Optional
+	colorBlending.blendConstants[2] = 0.0f; // Optional
+	colorBlending.blendConstants[3] = 0.0f; // Optional
 
 	// No depth test
 	VkPipelineDepthStencilStateCreateInfo depthStencil{};
@@ -205,6 +296,43 @@ void ImGuiRenderer::initResources()
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
+
+	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkPipelineDynamicStateCreateInfo dynamicState{};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.dynamicStateCount = 2;
+	dynamicState.pDynamicStates = dynamicStates;
+
+	// Dynamic rendering chained via pNext, no VkRenderPass needed
+	VkPipelineRenderingCreateInfo dynRenderInfo{};
+	dynRenderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+	dynRenderInfo.colorAttachmentCount = 1;
+	dynRenderInfo.pColorAttachmentFormats = &colorFormat;
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.pNext = &dynRenderInfo;
+	pipelineInfo.pDynamicState = &dynamicState;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+	pipelineInfo.pVertexInputState = &vertexInput;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.layout = pipelineLayout;
+	pipelineInfo.renderPass = VK_NULL_HANDLE;
+	pipelineInfo.subpass = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+	if (vkCreateGraphicsPipelines((*context).logicalDevice, pipelineCache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+
+	vkDestroyShaderModule((*context).logicalDevice, vertShaderModule, nullptr);
+	vkDestroyShaderModule((*context).logicalDevice, fragShaderModule, nullptr);
 }
 
 void ImGuiRenderer::setStyle(uint32_t index)
@@ -231,6 +359,19 @@ void ImGuiRenderer::setStyle(uint32_t index)
 	}
 }
 
+void ImGuiRenderer::initTexture()
+{
+	ImageUtils::createImage(
+		(*context), 1280, 720, VkFormat::VK_FORMAT_B8G8R8A8_UNORM,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		fontImage, fontImageMemory);
+
+	ImageUtils::createImageView(
+		(*context), fontImage, VkFormat::VK_FORMAT_B8G8R8A8_UNORM, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
+}
+
 void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData* tex)
 {
 	if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates) {
@@ -244,6 +385,11 @@ void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData*
 		VkFormat format = (tex->BytesPerPixel == 4) ? VkFormat::VK_FORMAT_B8G8R8A8_UNORM : VkFormat::VK_FORMAT_R8_UNORM;
 
 		if (tex->Status == ImTextureStatus_WantCreate) {
+
+			vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
+			vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
+			vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+
 			// Create optimized GPU image for texture storage
 			VkExtent3D extent{ static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
 			ImageUtils::createImage(
@@ -278,6 +424,9 @@ void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData*
 		ImageUtils::transitionImageLayout((*context), commandBuffer, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		BufferUtils::copyBufferToImage((*context), commandBuffer, stagingBuffer, fontImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 		ImageUtils::transitionImageLayout((*context), commandBuffer, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		//vkDestroyBuffer((*context).logicalDevice, stagingBuffer, nullptr);
+		//vkFreeMemory((*context).logicalDevice, stagingBufferMemory, nullptr);
 
 		// Store descriptor set handle as the ImTextureID
 		// In this implementation, we use a single descriptor set for the font atlas
@@ -333,6 +482,9 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 		// Recreate vertex buffer with new size
 		for (int i = 0; i < maxFramesInFlight; i++)
 		{
+			vkDestroyBuffer((*context).logicalDevice, vertexBuffers[i], nullptr);
+			vkFreeMemory((*context).logicalDevice, vertexBufferMemories[i], nullptr);
+
 			BufferUtils::createBuffer(
 				(*context),
 				1024 * sizeof(ImDrawVert),
@@ -347,6 +499,9 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 		// Recreate index buffer with new size
 		for (int i = 0; i < maxFramesInFlight; i++)
 		{
+			vkDestroyBuffer((*context).logicalDevice, indexBuffers[i], nullptr);
+			vkFreeMemory((*context).logicalDevice, indexBufferMemories[i], nullptr);
+
 			BufferUtils::createBuffer(
 				(*context),
 				1024 * sizeof(ImDrawVert),

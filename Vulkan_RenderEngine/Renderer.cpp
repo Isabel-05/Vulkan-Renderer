@@ -1,5 +1,6 @@
 #pragma once
 #include "Renderer.h"
+#include "ImGuiRenderer.h"
 #include <chrono>
 
 const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/Wolf_student_girl.obj";
@@ -12,17 +13,16 @@ const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Grap
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
 	try {
+
 		camera = Camera();
 		context.init(newWindow);
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
-		renderPass.create(context, swapChain.imageFormat);
 		frameData.createDescriptorSetLayout(context);
-		graphicsPipeline.create(context, renderPass.handle, frameData.descriptorSetLayout);
+		graphicsPipeline.create(context, swapChain.imageFormat, frameData.descriptorSetLayout);
 		commandPool.create(context);
 		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
 		swapChain.createDepthResources(context, commandPool);
-		swapChain.createFramebuffers(context, renderPass.handle);
 		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject.material.textures, testObject.material.textureMemories);
 		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews);
 		ImageUtils::createImageSampler(context, testObject.material.textureSampler);
@@ -33,6 +33,10 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		frameData.createDescriptorSets(context, testObject.material.textureImageViews, testObject.material.textureSampler);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
+
+		guiRenderer = new ImGuiRenderer(*this);
+		(*guiRenderer).init((float)swapChain.extent.width, (float)swapChain.extent.height);
+		(*guiRenderer).initResources();
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -45,6 +49,8 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 void VulkanRenderer::cleanup()
 {
+	(*guiRenderer).cleanup();
+
 	swapChain.cleanupSwapChain(context);
 
 	testObject.cleanup(context);
@@ -64,6 +70,8 @@ void VulkanRenderer::cleanup()
 	commandPool.cleanup(context);
 
 	context.cleanup();
+
+	delete guiRenderer;
 }
 
 void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
@@ -89,7 +97,22 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 
 
 	vkResetCommandBuffer(frameData.commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+
+	if ((*guiRenderer).newFrame())
+	{
+		(*guiRenderer).updateBuffers(currentFrame, frameData.maxFramesInFlight);
+	}
+
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
+
+	//(*guiRenderer).drawFrame(frameData.commandBuffers[currentFrame], swapChain.imageViews[imageIndex]);
+
+	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+	//finish recording command buffer
+	if (vkEndCommandBuffer(frameData.commandBuffers[currentFrame]) != VK_SUCCESS) {
+		throw std::runtime_error("failed to record command buffer!");
+	}
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -170,24 +193,37 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	//drawing starts by beginning the render pass
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = renderPass.handle;
-	renderPassInfo.framebuffer = swapChain.framebuffers[imageIndex];
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = swapChain.extent;
+	ImageUtils::transitionImageLayout(context, commandBuffer, swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	std::array<VkClearValue, 2> clearValues{};
-	clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-	clearValues[1].depthStencil = { 1.0f, 0 };
+	VkRenderingAttachmentInfoKHR colorAttachment{};
+	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	colorAttachment.imageView = swapChain.imageViews[imageIndex];
+	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-	renderPassInfo.pClearValues = clearValues.data();
+	VkRenderingAttachmentInfo depthInfo{};
+	depthInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	depthInfo.pNext = nullptr;
+	depthInfo.imageView = swapChain.depthImageView;
+	depthInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthInfo.resolveMode = VK_RESOLVE_MODE_NONE;
+	depthInfo.resolveImageView = VK_NULL_HANDLE;
+	depthInfo.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	depthInfo.clearValue.depthStencil = { 1.0f, 0 };
 
-	//command passed into command buffer (indicated by vkCmd prefix)
-	//last parameter tells if the render pass commands will be excecuted from secondary command buffers or not (in our case no)
-	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	VkRenderingInfoKHR renderingInfo{};
+	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+	renderingInfo.renderArea = { {0, 0}, swapChain.extent };
+	renderingInfo.layerCount = 1;
+	renderingInfo.colorAttachmentCount = 1;
+	renderingInfo.pColorAttachments = &colorAttachment;
+	renderingInfo.pDepthAttachment = &depthInfo;
+
+	vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
 	//bind graphics pipeline
 	//second parameter decides if its a graphics or compute pipeline
@@ -224,13 +260,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(testObject.mesh.indices.size()), 1, 0, 0, 0);
 
-	//end render pass
-	vkCmdEndRenderPass(commandBuffer);
-
-	//finish recording command buffer
-	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to record command buffer!");
-	}
+	vkCmdEndRendering(commandBuffer);
 }
 
 void VulkanRenderer::createVertexBuffer()

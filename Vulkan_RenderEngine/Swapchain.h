@@ -11,7 +11,6 @@ public:
 	VkSwapchainKHR handle;
 	std::vector<VkImage> images;
 	std::vector<VkImageView> imageViews;
-	std::vector<VkFramebuffer> framebuffers;
 
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
@@ -23,7 +22,6 @@ public:
 
 	void createSwapchain(VulkanContext& context);
 	void createImageViews(VulkanContext& context);
-	void createFramebuffers(VulkanContext& context, VkRenderPass renderPass);
 	void createDepthResources(VulkanContext& context, CommandPool& cmdPool);
 	void cleanupSwapChain(VulkanContext& context);
 	void recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, VkRenderPass renderPass);
