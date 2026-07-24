@@ -1,21 +1,23 @@
 #include "ImGuiRenderer.h"
-#include "Renderer.h"
+#include "VulkanContext.h"
 #include "BufferUtils.h"
 #include "Image.h"
 
 
-ImGuiRenderer::ImGuiRenderer(VulkanRenderer& renderer):
-	context(&renderer.context), graphicsQueueFamily(renderer.context.getQueueFamilyIndices(renderer.context.physicalDevice).graphicsFamily)
+ImGuiRenderer::ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight) :
+	context(&vContext), graphicsQueueFamily(vContext.getQueueFamilyIndices(vContext.physicalDevice).graphicsFamily)
 {
-	vertexBuffers.resize(renderer.frameData.maxFramesInFlight);
-	indexBuffers.resize(renderer.frameData.maxFramesInFlight);
-	vertexBufferMemories.resize(renderer.frameData.maxFramesInFlight);
-	indexBufferMemories.resize(renderer.frameData.maxFramesInFlight);
+	vertexBuffers.resize(maxFramesInFlight);
+	indexBuffers.resize(maxFramesInFlight);
+	vertexBufferMemories.resize(maxFramesInFlight);
+	indexBufferMemories.resize(maxFramesInFlight);
+	vertexCounts.resize(maxFramesInFlight, 0);
+	indexCounts.resize(maxFramesInFlight, 0);
 
-	for (int i = 0; i < renderer.frameData.maxFramesInFlight; i++)
+	for (int i = 0; i < maxFramesInFlight; i++)
 	{
 		BufferUtils::createBuffer(
-			renderer.context,
+			vContext,
 			1024 * sizeof(ImDrawVert),
 			VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -23,7 +25,7 @@ ImGuiRenderer::ImGuiRenderer(VulkanRenderer& renderer):
 			vertexBufferMemories[i]);
 
 		BufferUtils::createBuffer(
-			renderer.context,
+			vContext,
 			1024 * sizeof(ImDrawVert),
 			VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -110,7 +112,7 @@ void ImGuiRenderer::initResources()
 
 	// Create descriptor pool for shader resource binding
 	// Descriptors provide the interface between shaders and GPU resources
-	VkDescriptorPoolSize poolSize{ VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
+	VkDescriptorPoolSize poolSize{ VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50 };
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;  // Structure type identifier
@@ -154,7 +156,7 @@ void ImGuiRenderer::initResources()
 	VkDescriptorImageInfo imageInfo{};
 	imageInfo.imageLayout = VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;           // Expected image layout
 	imageInfo.imageView = fontImageView;                           // Font texture view
-	imageInfo.sampler = sampler;                                              // Texture sampler
+	imageInfo.sampler = sampler;
 
 	VkWriteDescriptorSet writeSet{};
 	writeSet.sType = VkStructureType::VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;  // Structure type identifier
@@ -372,7 +374,7 @@ void ImGuiRenderer::initTexture()
 		(*context), fontImage, VkFormat::VK_FORMAT_B8G8R8A8_UNORM, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
 }
 
-void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData* tex)
+void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 {
 	if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates) {
 		int texWidth = tex->Width;
@@ -385,6 +387,8 @@ void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData*
 		VkFormat format = (tex->BytesPerPixel == 4) ? VkFormat::VK_FORMAT_B8G8R8A8_UNORM : VkFormat::VK_FORMAT_R8_UNORM;
 
 		if (tex->Status == ImTextureStatus_WantCreate) {
+
+			vkDeviceWaitIdle((*context).logicalDevice);
 
 			vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
 			vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
@@ -401,7 +405,24 @@ void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData*
 
 			ImageUtils::createImageView(
 				(*context), fontImage, format, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
+
+			VkDescriptorImageInfo imageInfo{};
+			imageInfo.imageLayout = VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageInfo.imageView = fontImageView;
+			imageInfo.sampler = sampler;
+
+			VkWriteDescriptorSet writeSet{};
+			writeSet.sType = VkStructureType::VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeSet.dstSet = descriptorSet;
+			writeSet.dstBinding = 0;
+			writeSet.dstArrayElement = 0;
+			writeSet.descriptorCount = 1;
+			writeSet.descriptorType = VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			writeSet.pImageInfo = &imageInfo;
+
+			vkUpdateDescriptorSets((*context).logicalDevice, 1, &writeSet, 0, nullptr);
 		}
+
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -421,21 +442,28 @@ void ImGuiRenderer::updateTexture(VkCommandBuffer& commandBuffer, ImTextureData*
 		vkUnmapMemory((*context).logicalDevice, stagingBufferMemory);
 
 		// Transition image layout and copy data
-		ImageUtils::transitionImageLayout((*context), commandBuffer, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-		BufferUtils::copyBufferToImage((*context), commandBuffer, stagingBuffer, fontImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-		ImageUtils::transitionImageLayout((*context), commandBuffer, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		BufferUtils::copyBufferToImage((*context), cmdPool, stagingBuffer, fontImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		//vkDestroyBuffer((*context).logicalDevice, stagingBuffer, nullptr);
-		//vkFreeMemory((*context).logicalDevice, stagingBufferMemory, nullptr);
+		vkDestroyBuffer((*context).logicalDevice, stagingBuffer, nullptr);
+		vkFreeMemory((*context).logicalDevice, stagingBufferMemory, nullptr);
 
 		// Store descriptor set handle as the ImTextureID
 		// In this implementation, we use a single descriptor set for the font atlas
 		tex->SetTexID((ImTextureID)(intptr_t)(VkDescriptorSet)descriptorSet);
 		tex->SetStatus(ImTextureStatus_OK);
 	}
+	if (tex->Status == ImTextureStatus_WantDestroy) {
+		// Handle texture deletion if needed
+		vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
+		vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
+		vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+		tex->SetStatus(ImTextureStatus_Destroyed);
+	}
 }
 
-bool ImGuiRenderer::newFrame()
+void ImGuiRenderer::newFrame()
 {
 	ImGui::NewFrame();
 
@@ -453,17 +481,6 @@ bool ImGuiRenderer::newFrame()
 
 	// Render to generate draw data
 	ImGui::Render();
-
-	// Check if buffers need updating
-	ImDrawData* drawData = ImGui::GetDrawData();
-	if (drawData && drawData->CmdListsCount > 0) {
-		if (drawData->TotalVtxCount > vertexCount || drawData->TotalIdxCount > indexCount) {
-			needsUpdateBuffers = true;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight)
@@ -478,38 +495,38 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 	VkDeviceSize indexBufferSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
 
 	// Resize buffers if needed
-	if (drawData->TotalVtxCount > vertexCount) {
-		// Recreate vertex buffer with new size
-		for (int i = 0; i < maxFramesInFlight; i++)
-		{
-			vkDestroyBuffer((*context).logicalDevice, vertexBuffers[i], nullptr);
-			vkFreeMemory((*context).logicalDevice, vertexBufferMemories[i], nullptr);
+	if (drawData->TotalVtxCount > vertexCounts[currentFrame]) {
 
-			BufferUtils::createBuffer(
-				(*context),
-				1024 * sizeof(ImDrawVert),
-				VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				vertexBuffers[i],
-				vertexBufferMemories[i]);
-		}
+		// Recreate vertex buffer with new size
+		vkDestroyBuffer((*context).logicalDevice, vertexBuffers[currentFrame], nullptr);
+		vkFreeMemory((*context).logicalDevice, vertexBufferMemories[currentFrame], nullptr);
+
+		BufferUtils::createBuffer(
+			(*context),
+			vertexBufferSize,
+			VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			vertexBuffers[currentFrame],
+			vertexBufferMemories[currentFrame]);
+
+		vertexCounts[currentFrame] = drawData->TotalVtxCount;
 	}
 
-	if (drawData->TotalIdxCount > indexCount) {
+	if (drawData->TotalIdxCount > indexCounts[currentFrame]) {
 		// Recreate index buffer with new size
-		for (int i = 0; i < maxFramesInFlight; i++)
-		{
-			vkDestroyBuffer((*context).logicalDevice, indexBuffers[i], nullptr);
-			vkFreeMemory((*context).logicalDevice, indexBufferMemories[i], nullptr);
 
-			BufferUtils::createBuffer(
-				(*context),
-				1024 * sizeof(ImDrawVert),
-				VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				indexBuffers[i],
-				indexBufferMemories[i]);
-		}
+		vkDestroyBuffer((*context).logicalDevice, indexBuffers[currentFrame], nullptr);
+		vkFreeMemory((*context).logicalDevice, indexBufferMemories[currentFrame], nullptr);
+
+		BufferUtils::createBuffer(
+			(*context),
+			indexBufferSize,
+			VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			indexBuffers[currentFrame],
+			indexBufferMemories[currentFrame]);
+
+		indexCounts[currentFrame] = drawData->TotalIdxCount;
 	}
 
 	// Upload data to buffers
@@ -531,19 +548,19 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 	vkUnmapMemory((*context).logicalDevice, indexBufferMemories[currentFrame]);
 }
 
-void ImGuiRenderer::drawFrame(VkCommandBuffer& commandBuffer, VkImageView& imageView)
+void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView)
 {
 	ImDrawData* drawData = ImGui::GetDrawData();
 	if (!drawData || drawData->CmdListsCount == 0) {
 		return;
 	}
 
-	// Process dynamic texture updates (v1.92+ RendererHasTextures protocol)
+	// Process dynamic texture updates (RendererHasTextures protocol)
 	if (drawData->Textures) {
 		for (int n = 0; n < drawData->Textures->Size; n++) {
 			ImTextureData* tex = (*drawData->Textures)[n];
 			if (tex->Status != ImTextureStatus_OK) {
-				updateTexture(commandBuffer, tex);
+				updateTexture(cmdPool, tex);
 			}
 		}
 	}
@@ -583,10 +600,10 @@ void ImGuiRenderer::drawFrame(VkCommandBuffer& commandBuffer, VkImageView& image
 	pushConstBlock.translate = glm::vec2(-1.0f);
 	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &pushConstBlock);
 
-	VkBuffer vBuffers[] = { *vertexBuffers.data() };
+	VkBuffer vBuffers[] = { vertexBuffers[currentFrame] };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vBuffers, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, *indexBuffers.data(), 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffers[currentFrame], 0, VK_INDEX_TYPE_UINT16);
 
 	int vertexOffset = 0;
 	int indexOffset = 0;

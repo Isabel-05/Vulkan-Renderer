@@ -2,13 +2,13 @@
 #include "Renderer.h"
 #include "ImGuiRenderer.h"
 #include <chrono>
+#include <iostream>
 
 const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/Wolf_student_girl.obj";
 const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/WolfGirl_Base.png";
 
 //const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/viking_room.obj";
 //const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/viking_room.png";
-
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
@@ -34,7 +34,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
-		guiRenderer = new ImGuiRenderer(*this);
+		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
 		(*guiRenderer).init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		(*guiRenderer).initResources();
 	}
@@ -76,7 +76,6 @@ void VulkanRenderer::cleanup()
 
 void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
-
 	vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
@@ -95,17 +94,15 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 
 	vkResetFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame]);
 
-
 	vkResetCommandBuffer(frameData.commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-
-	if ((*guiRenderer).newFrame())
-	{
-		(*guiRenderer).updateBuffers(currentFrame, frameData.maxFramesInFlight);
-	}
 
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
-	//(*guiRenderer).drawFrame(frameData.commandBuffers[currentFrame], swapChain.imageViews[imageIndex]);
+	//ImGui rendering Start
+	(*guiRenderer).newFrame();
+	(*guiRenderer).updateBuffers(currentFrame, frameData.maxFramesInFlight);
+	(*guiRenderer).recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
+	//ImGui rendering End
 
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 

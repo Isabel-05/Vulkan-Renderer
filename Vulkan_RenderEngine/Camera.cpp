@@ -2,7 +2,7 @@
 
 Camera::Camera()
 {
-    position = glm::vec3(0.0f, 0.0f, 0.0f);
+    position = glm::vec3(8.0f, 0.0f, 0.0f);
     up = glm::vec3(0.0f, 1.0f, 0.0f);        // Y-axis as world up
 	horizontalAngle = 0.0f;
 	verticalAngle = 90.0f;

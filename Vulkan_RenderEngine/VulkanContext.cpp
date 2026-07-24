@@ -70,6 +70,7 @@ void VulkanContext::createInstance()
 	{
 		instanceExtensions.push_back(glfwExtensions[i]);
 	}
+	instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); //extension for debug messages from validation layers
 
 	//Check if instance extensions are supported
 	if (!checkInstanceExtensionSupport(&instanceExtensions))
