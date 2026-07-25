@@ -643,3 +643,42 @@ void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& comm
 
 	vkCmdEndRendering(commandBuffer);
 }
+
+void ImGuiRenderer::handleKey(int key, int scancode, int action, int mods)
+{
+	ImGuiIO& io = ImGui::GetIO();
+
+	// Map the platform-specific key action to a boolean state
+	// In GLFW: GLFW_RELEASE = 0, GLFW_PRESS = 1, GLFW_REPEAT = 2
+	bool pressed = (action != 0);
+
+	// Modern ImGui (v1.87+) uses AddKeyEvent to queue input events.
+	// This handles key states, modifiers, and repeat logic internally.
+	// Most backends can cast native key codes directly to ImGuiKey.
+	io.AddKeyEvent((ImGuiKey)key, pressed);
+}
+
+void ImGuiRenderer::handleMousePos(float x, float y)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	// Modern event API for mouse position
+	io.AddMousePosEvent(x, y);
+}
+
+void ImGuiRenderer::handleMouseButton(int button, bool pressed)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	// Modern event API for mouse buttons (0: Left, 1: Right, 2: Middle)
+	io.AddMouseButtonEvent(button, pressed);
+}
+
+bool ImGuiRenderer::getWantKeyCapture()
+{
+	return ImGui::GetIO().WantCaptureKeyboard;
+}
+
+void ImGuiRenderer::charPressed(uint32_t key)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	io.AddInputCharacter(key);
+}

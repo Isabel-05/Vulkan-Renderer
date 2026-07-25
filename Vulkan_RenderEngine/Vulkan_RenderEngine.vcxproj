@@ -138,7 +138,6 @@
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
-    <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
     <ClCompile Include="imgui_impl_glfw.cpp" />
     <ClCompile Include="imgui_impl_vulkan.cpp" />
@@ -158,7 +157,10 @@
     <ClInclude Include="FrameData.h" />
     <ClInclude Include="GraphicsState.h" />
     <ClInclude Include="Image.h" />
+    <ClInclude Include="imgui.h" />
     <ClInclude Include="ImGuiRenderer.h" />
+    <ClInclude Include="imgui_impl_glfw.h" />
+    <ClInclude Include="imgui_impl_vulkan.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RenderObject.h" />
     <ClInclude Include="Swapchain.h" />

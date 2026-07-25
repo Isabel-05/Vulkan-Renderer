@@ -53,18 +53,26 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	// Delta values drive continuous camera orientation changes
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 	app->camera.processMouseMovement(xoffset, yoffset);
+
+	app->guiRenderer->handleMousePos(static_cast<float>(xpos), static_cast<float>(ypos)); // Pass mouse position to ImGui for UI interaction);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
+
+	if (ImGui::GetIO().WantCaptureMouse)
+	{
+		app->guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
+		return;
+	}
+
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
-		auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 		app->camera.mousePressed = true;  // Set flag to indicate left mouse button is pressed
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{
-		auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 		app->camera.mousePressed = false; // Clear flag when left mouse button is released
 	}
 }
