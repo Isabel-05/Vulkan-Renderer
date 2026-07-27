@@ -105,10 +105,11 @@ void Swapchain::createImageViews(VulkanContext& context)
 
 void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPool)
 {
-	ImageUtils::createImage(context, extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
-	ImageUtils::createImageView(context, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthImageView);
+	ImageUtils::createImage(context, extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, 1);
+	ImageUtils::createImageView(context, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthImageView, 1);
 
-	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
 void Swapchain::cleanupSwapChain(VulkanContext& context)
@@ -127,7 +128,7 @@ void Swapchain::cleanupSwapChain(VulkanContext& context)
 
 }
 
-void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, VkRenderPass renderPass)
+void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool)
 {
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(context.window, &width, &height);

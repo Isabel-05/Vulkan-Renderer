@@ -344,7 +344,7 @@ void ImGuiRenderer::initTexture()
 		fontImage, fontImageMemory);
 
 	ImageUtils::createImageView(
-		(*context), fontImage, VkFormat::VK_FORMAT_B8G8R8A8_UNORM, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
+		(*context), fontImage, VkFormat::VK_FORMAT_B8G8R8A8_UNORM, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView, 1);
 }
 
 void ImGuiRenderer::setStyle()
@@ -396,7 +396,7 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 				fontImage, fontImageMemory);
 
 			ImageUtils::createImageView(
-				(*context), fontImage, format, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
+				(*context), fontImage, format, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView, 1);
 
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -434,9 +434,10 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 		vkUnmapMemory((*context).logicalDevice, stagingBufferMemory);
 
 		// Transition image layout and copy data
-		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
 		BufferUtils::copyBufferToImage((*context), cmdPool, stagingBuffer, fontImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
 		vkDestroyBuffer((*context).logicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory((*context).logicalDevice, stagingBufferMemory, nullptr);

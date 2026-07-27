@@ -29,7 +29,6 @@ public:
 
 	VulkanContext context;
 	Swapchain swapChain;
-	RenderPass renderPass;
 	Camera camera;
 	FrameData frameData;
 

@@ -3,6 +3,8 @@
 #include "RenderObject.h"
 #include "Image.h"
 
+#include <iostream>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
 
@@ -73,6 +75,7 @@ namespace ImageUtils
 		stbi_uc* pixels = stbi_load(texPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
 		rdrObject.material.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+		std::cout << "Texture Mip Levels: " << rdrObject.material.mipLevels << std::endl;
 
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
@@ -107,6 +110,8 @@ namespace ImageUtils
 
 		vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
+
+		//createImageView(context, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, rdrObject.material.textureImageViews, rdrObject.material.mipLevels);
 	}
 
 	void createImageSampler(VulkanContext& context, VkSampler& textureSampler)
@@ -130,7 +135,7 @@ namespace ImageUtils
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.minLod = 0.0f;
+		samplerInfo.minLod = 6.0f;
 		samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 
 		if (vkCreateSampler(context.logicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
@@ -157,8 +162,7 @@ namespace ImageUtils
 		int32_t mipWidth = texWidth;
 		int32_t mipHeight = texHeight;
 
-		for (uint32_t i = 1; i < mipLevels; i++) 
-		{
+		for (uint32_t i = 1; i < mipLevels; i++) {
 			barrier.subresourceRange.baseMipLevel = i - 1;
 			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
