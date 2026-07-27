@@ -106,10 +106,17 @@ void Swapchain::createImageViews(VulkanContext& context)
 void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPool)
 {
 	ImageUtils::createImage(context, extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, 1);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, 1, context.msaaSamples);
 	ImageUtils::createImageView(context, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthImageView, 1);
 
 	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
+}
+
+void Swapchain::createColorResources(VulkanContext& context)
+{
+	ImageUtils::createImage(context, extent.width, extent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory, 1, context.msaaSamples);
+	ImageUtils::createImageView(context, colorImage, imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, colorImageView, 1);
 }
 
 void Swapchain::cleanupSwapChain(VulkanContext& context)
@@ -117,6 +124,10 @@ void Swapchain::cleanupSwapChain(VulkanContext& context)
 	vkDestroyImage(context.logicalDevice, depthImage, nullptr);
 	vkFreeMemory(context.logicalDevice, depthImageMemory, nullptr);
 	vkDestroyImageView(context.logicalDevice, depthImageView, nullptr);
+
+	vkDestroyImage(context.logicalDevice, colorImage, nullptr);
+	vkDestroyImageView(context.logicalDevice, colorImageView, nullptr);
+	vkFreeMemory(context.logicalDevice, colorImageMemory, nullptr);
 
 	//Each image view needs to be deleted individually
 	for (auto imageView : imageViews) {
@@ -142,6 +153,7 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool)
 
 	createSwapchain(context);
 	createImageViews(context);
+	createColorResources(context);
 	createDepthResources(context, cmdPool);
 	ImGuiIO& io = ImGui::GetIO();
 	io.DisplaySize = ImVec2(static_cast<float>(extent.width),

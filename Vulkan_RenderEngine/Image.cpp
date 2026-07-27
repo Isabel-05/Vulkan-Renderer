@@ -3,15 +3,13 @@
 #include "RenderObject.h"
 #include "Image.h"
 
-#include <iostream>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image/stb_image.h>
 
 namespace ImageUtils
 {
 	void createImage(VulkanContext& context, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-		VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, uint32_t mipLvls)
+		VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, uint32_t mipLvls, VkSampleCountFlagBits numsamples)
 	{
 		VkImageCreateInfo imageInfo{};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -26,7 +24,7 @@ namespace ImageUtils
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		imageInfo.usage = usage;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.samples = numsamples;
 		imageInfo.flags = 0; // Optional
 
 		if (vkCreateImage(context.logicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS) {
@@ -75,7 +73,6 @@ namespace ImageUtils
 		stbi_uc* pixels = stbi_load(texPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
 		rdrObject.material.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-		std::cout << "Texture Mip Levels: " << rdrObject.material.mipLevels << std::endl;
 
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
@@ -135,7 +132,7 @@ namespace ImageUtils
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.minLod = 6.0f;
+		samplerInfo.minLod = 0.0f;
 		samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 
 		if (vkCreateSampler(context.logicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {

@@ -42,6 +42,8 @@ public:
 
 	VkSurfaceKHR surface;
 
+	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 		VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
@@ -69,6 +71,7 @@ private:
 	bool checkInstanceExtensionSupport(std::vector<const char*>* extensionsToCheck);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 	bool checkDeviceSuitable(VkPhysicalDevice device);
+	VkSampleCountFlagBits getMaxUsableMsaaSampleCount();
 	bool checkValidationLayerSupport();
 
 

@@ -60,7 +60,7 @@ void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, 
 	rasterizer.rasterizerDiscardEnable = VK_FALSE; //if set to true then geometry never passes through rasterizer (wont show on screen)
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
@@ -71,13 +71,13 @@ void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.rasterizationSamples = context.msaaSamples /*VK_SAMPLE_COUNT_1_BIT*/;
 	multisampling.minSampleShading = 1.0f; // Optional
 	multisampling.pSampleMask = nullptr; // Optional
 	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
 	multisampling.alphaToOneEnable = VK_FALSE; // Optional
-
-	//TODO stencil/depth buffer struct (VkPipelineDepthStencilStateCreateInfo)
+	multisampling.sampleShadingEnable = VK_TRUE;
+	multisampling.minSampleShading = 0.2f; // Optional
 
 	//Blending stage
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};

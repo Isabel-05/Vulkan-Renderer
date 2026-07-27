@@ -146,6 +146,7 @@ void VulkanContext::createLogicalDevice()
 	VkPhysicalDeviceFeatures deviceFeatures = {};
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	//Create logical device
 	VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
@@ -186,6 +187,7 @@ void VulkanContext::getPhysicalDevice()
 		if (checkDeviceSuitable(device))
 		{
 			physicalDevice = device;
+			msaaSamples = getMaxUsableMsaaSampleCount();
 			break;
 		}
 	}
@@ -255,6 +257,22 @@ bool VulkanContext::checkDeviceSuitable(VkPhysicalDevice device)
 	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
 	return queueIndices.isValid() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
+}
+
+VkSampleCountFlagBits VulkanContext::getMaxUsableMsaaSampleCount()
+{
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+	if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+	if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+	if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+	if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+	if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+	if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+	return VK_SAMPLE_COUNT_1_BIT;
 }
 
 QueueFamilyIndices VulkanContext::getQueueFamilyIndices(VkPhysicalDevice device)

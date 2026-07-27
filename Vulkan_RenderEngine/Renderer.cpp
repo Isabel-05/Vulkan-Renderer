@@ -16,24 +16,36 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		camera = Camera();
 		context.init(newWindow);
+
+		//Base Vulkan setup
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
 		frameData.createDescriptorSetLayout(context);
 		graphicsPipeline.create(context, swapChain.imageFormat, frameData.descriptorSetLayout);
 		commandPool.create(context);
-		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
+		swapChain.createColorResources(context);
 		swapChain.createDepthResources(context, commandPool);
+
+		//load model
+		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
+
+		//Texture Image, ImageView and sampler
 		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject);
 		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews, testObject.material.mipLevels);
 		ImageUtils::createImageSampler(context, testObject.material.textureSampler);
+
+		//Buffers
 		createVertexBuffer();
 		createIndexBuffer();
+
+		//Rendering loop resources
 		frameData.createUniformBuffers(context);
 		frameData.createDescriptorPool(context);
 		frameData.createDescriptorSets(context, testObject.material.textureImageViews, testObject.material.textureSampler);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
+		//ImGui setup
 		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
 		(*guiRenderer).init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		(*guiRenderer).initResources();
@@ -189,12 +201,16 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
+	ImageUtils::transitionImageLayout(context, commandBuffer, swapChain.colorImage, swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	ImageUtils::transitionImageLayout(context, commandBuffer, swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 
 	VkRenderingAttachmentInfoKHR colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	colorAttachment.imageView = swapChain.imageViews[imageIndex];
+	colorAttachment.imageView = swapChain.colorImageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+	colorAttachment.resolveImageView = swapChain.imageViews[imageIndex];
+	colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };

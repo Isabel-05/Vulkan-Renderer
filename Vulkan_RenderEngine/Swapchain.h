@@ -20,9 +20,15 @@ public:
 	VkExtent2D extent;
 	uint32_t imageCount;
 
+	VkImage colorImage;
+	VkDeviceMemory colorImageMemory;
+	VkImageView colorImageView;
+
+
 	void createSwapchain(VulkanContext& context);
 	void createImageViews(VulkanContext& context);
 	void createDepthResources(VulkanContext& context, CommandPool& cmdPool);
+	void createColorResources(VulkanContext& context);
 	void cleanupSwapChain(VulkanContext& context);
 	void recreateSwapChain(VulkanContext& context, CommandPool& cmdPool);
 
