@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="imguifiles">
+      <UniqueIdentifier>{389aeed7-0cbc-4682-9130-33ff6ab80a35}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -54,26 +57,26 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="imgui.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_demo.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_demo.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_draw.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_draw.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_impl_glfw.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_tables.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_impl_vulkan.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_widgets.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_tables.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_glfw.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_widgets.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_vulkan.cpp">
+      <Filter>imguifiles</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -112,6 +115,27 @@
     </ClInclude>
     <ClInclude Include="Camera.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imgui.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imgui_internal.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_rectpack.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_textedit.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_truetype.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_glfw.h">
+      <Filter>imguifiles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_vulkan.h">
+      <Filter>imguifiles</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

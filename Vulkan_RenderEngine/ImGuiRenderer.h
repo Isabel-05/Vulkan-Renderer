@@ -28,9 +28,9 @@ public:
 
 	void init(float width, float height);                   
 	void cleanup();                                            
-	void initResources();                                    
-	void setStyle(uint32_t index);                          
+	void initResources();                                                          
 	void initTexture();
+	void setStyle();
 	void updateTexture(CommandPool& cmdPool, ImTextureData* tex);                 // Dynamically update/create textures 
 
 	// Frame-by-frame rendering operations

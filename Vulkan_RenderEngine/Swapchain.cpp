@@ -1,6 +1,6 @@
 #pragma once
 #include "Swapchain.h"
-
+#include "imgui.h"
 #include <glm/glm.hpp>
 #include <array>
 
@@ -142,6 +142,9 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, 
 	createSwapchain(context);
 	createImageViews(context);
 	createDepthResources(context, cmdPool);
+	ImGuiIO& io = ImGui::GetIO();
+	io.DisplaySize = ImVec2(static_cast<float>(extent.width),
+		static_cast<float>(extent.height));
 }
 
 

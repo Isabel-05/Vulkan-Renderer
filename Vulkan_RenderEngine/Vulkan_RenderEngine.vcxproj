@@ -104,7 +104,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies\imgui-1.92.8\backends;C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies\imgui-1.92.8;C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies;C:\VulkanSDK\1.4.341.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies\imgui-docking\backends;C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies\imgui-docking;C:\Users\Administrator\Documents\Projects\Graphics Programming\ExternalDependencies;C:\VulkanSDK\1.4.341.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,19 +130,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_demo.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_draw.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_tables.cpp" />
+    <ClCompile Include="..\..\..\ExternalDependencies\imgui-docking\imgui_widgets.cpp" />
     <ClCompile Include="BufferUtils.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CommandPool.cpp" />
     <ClCompile Include="FrameData.cpp" />
     <ClCompile Include="GraphicsState.cpp" />
     <ClCompile Include="Image.cpp" />
-    <ClCompile Include="imgui.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
-    <ClCompile Include="imgui_draw.cpp" />
-    <ClCompile Include="imgui_impl_glfw.cpp" />
-    <ClCompile Include="imgui_impl_vulkan.cpp" />
-    <ClCompile Include="imgui_tables.cpp" />
-    <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderObject.cpp" />
@@ -151,16 +152,20 @@
     <ClCompile Include="VulkanContext.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_glfw.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\backends\imgui_impl_vulkan.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imgui.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imgui_internal.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_rectpack.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_textedit.h" />
+    <ClInclude Include="..\..\..\ExternalDependencies\imgui-docking\imstb_truetype.h" />
     <ClInclude Include="BufferUtils.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CommandPool.h" />
     <ClInclude Include="FrameData.h" />
     <ClInclude Include="GraphicsState.h" />
     <ClInclude Include="Image.h" />
-    <ClInclude Include="imgui.h" />
     <ClInclude Include="ImGuiRenderer.h" />
-    <ClInclude Include="imgui_impl_glfw.h" />
-    <ClInclude Include="imgui_impl_vulkan.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RenderObject.h" />
     <ClInclude Include="Swapchain.h" />

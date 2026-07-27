@@ -1,5 +1,6 @@
 #pragma once
 #include "VulkanContext.h"
+#include "RenderObject.h"
 #include "Image.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -64,12 +65,13 @@ namespace ImageUtils
 		}
 	}
 
-	void createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath, VkImage& textureImage, VkDeviceMemory& textureImageMemory)
+	void createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath, RenderObject& rdrObject)
 	{
 
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(texPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		rdrObject.material.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
@@ -86,16 +88,16 @@ namespace ImageUtils
 
 		stbi_image_free(pixels);
 
-		createImage(context, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+		createImage(context, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, rdrObject.material.textures, rdrObject.material.textureMemories);
 
 		//transition layout into optimal Destination layout
-		transitionImageLayout(context, cmdPool, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		transitionImageLayout(context, cmdPool, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		//Loads actual pixel data into image memory
-		BufferUtils::copyBufferToImage(context, cmdPool, stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+		BufferUtils::copyBufferToImage(context, cmdPool, stagingBuffer, rdrObject.material.textures, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
 		//transition layout into shader readable optimal layout
-		transitionImageLayout(context, cmdPool, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		transitionImageLayout(context, cmdPool, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);

@@ -22,6 +22,7 @@ struct Material
 	VkImage textures;
 	VkDeviceMemory textureMemories;	
 	VkImageView textureImageViews;
+	uint32_t mipLevels;
 	VkSampler textureSampler;
 	std::string shaderPath;
 };
@@ -32,8 +33,11 @@ public:
 	void init(std::string modelPath, std::vector<std::string> texturePaths, std::string shaderPath);
 	void cleanup(VulkanContext& context);
 
+	glm::vec3 position;
+	glm::vec3 rotation;
+	glm::vec3 scale;
 	Mesh mesh;
 	Material material;
-	glm::mat4 transform;
+
 };
 

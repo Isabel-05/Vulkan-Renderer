@@ -77,7 +77,17 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	}
 }
 
-
+void mouse_wheel_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
+	if (ImGui::GetIO().WantCaptureMouse)
+	{
+		// Pass mouse wheel input to ImGui for UI interaction
+		ImGuiIO& io = ImGui::GetIO();
+		io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
+		return;
+	}
+}
 
 int main()
 {
@@ -94,6 +104,7 @@ int main()
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 	glfwSetCursorPosCallback(window, mouseCallback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetScrollCallback(window, mouse_wheel_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
 	if (renderer.init(window) == EXIT_FAILURE)

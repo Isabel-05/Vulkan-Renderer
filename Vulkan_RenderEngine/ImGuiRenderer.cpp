@@ -3,6 +3,9 @@
 #include "BufferUtils.h"
 #include "Image.h"
 
+#include <iostream>
+#include "imgui_internal.h"
+
 
 ImGuiRenderer::ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight) :
 	context(&vContext), graphicsQueueFamily(vContext.getQueueFamilyIndices(vContext.physicalDevice).graphicsFamily)
@@ -51,6 +54,8 @@ void ImGuiRenderer::init(float width, float height)
 	// Configure ImGui
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable keyboard controls
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable multi-viewport support
 
 	// Inform ImGui that we support the new texture update protocol (v1.92+)
 	// This enables support for dynamic font textures and multiple texture atlases
@@ -60,16 +65,8 @@ void ImGuiRenderer::init(float width, float height)
 	io.DisplaySize = ImVec2(width, height);
 	io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 
-	// Set up style
-	vulkanStyle = ImGui::GetStyle();
-	vulkanStyle.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
-	vulkanStyle.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
-	vulkanStyle.Colors[ImGuiCol_MenuBarBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-	vulkanStyle.Colors[ImGuiCol_Header] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-	vulkanStyle.Colors[ImGuiCol_CheckMark] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
-
-	// Apply default style
-	setStyle(0);
+	//Style
+	setStyle();
 }
 
 void ImGuiRenderer::cleanup()
@@ -337,30 +334,6 @@ void ImGuiRenderer::initResources()
 	vkDestroyShaderModule((*context).logicalDevice, fragShaderModule, nullptr);
 }
 
-void ImGuiRenderer::setStyle(uint32_t index)
-{
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	switch (index) {
-	case 0:
-		// Custom Vulkan style
-		style = vulkanStyle;
-		break;
-	case 1:
-		// Classic style
-		ImGui::StyleColorsClassic();
-		break;
-	case 2:
-		// Dark style
-		ImGui::StyleColorsDark();
-		break;
-	case 3:
-		// Light style
-		ImGui::StyleColorsLight();
-		break;
-	}
-}
-
 void ImGuiRenderer::initTexture()
 {
 	ImageUtils::createImage(
@@ -372,6 +345,25 @@ void ImGuiRenderer::initTexture()
 
 	ImageUtils::createImageView(
 		(*context), fontImage, VkFormat::VK_FORMAT_B8G8R8A8_UNORM, VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT, fontImageView);
+}
+
+void ImGuiRenderer::setStyle()
+{
+	ImVec4 black = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+	ImVec4 lightPurple = ImVec4(0.42f, 0.42f, 0.9f, 1.0f);
+	ImVec4 darkPurple = ImVec4(0.3f, 0.2f, 0.57f, 1.0f);
+
+
+	ImGui::StyleColorsClassic();
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	style.FontSizeBase = 16.0f;
+	style.Colors[ImGuiCol_WindowBg] = black;
+	style.Colors[ImGuiCol_TitleBg] = black;
+	style.Colors[ImGuiCol_MenuBarBg] = black;
+	style.Colors[ImGuiCol_Header] = lightPurple;
+	style.Colors[ImGuiCol_HeaderHovered] = darkPurple;
+
 }
 
 void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
@@ -467,13 +459,37 @@ void ImGuiRenderer::newFrame()
 {
 	ImGui::NewFrame();
 
-	// Create your UI elements here
-	// For example:
+	ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+	// Submit dockspace
+	ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
+
 	ImGui::Begin("Vulkan ImGui Demo");
-	ImGui::Text("Hello, Vulkan!");
-	if (ImGui::Button("Click me!")) {
-		// Handle button click
+	ImGui::ShowStyleEditor();
+
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Open File")) {}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Edit"))
+		{
+			if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
+			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, false)) {} // Disabled item
+			ImGui::Separator();
+			if (ImGui::MenuItem("Cut", "Ctrl+X")) {}
+			if (ImGui::MenuItem("Copy", "Ctrl+C")) {}
+			if (ImGui::MenuItem("Paste", "Ctrl+V")) {}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
 	}
+
+	ImGui::ShowDemoWindow();
+
 	ImGui::End();
 
 	// End the frame
@@ -481,6 +497,17 @@ void ImGuiRenderer::newFrame()
 
 	// Render to generate draw data
 	ImGui::Render();
+
+	ImDrawData* drawData = ImGui::GetDrawData();
+	drawData->CmdListsCount = drawData->CmdLists.Size;
+
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		GLFWwindow* backup_current_context = glfwGetCurrentContext();
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+		glfwMakeContextCurrent(backup_current_context);
+	}
 }
 
 void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight)

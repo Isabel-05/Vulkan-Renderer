@@ -20,7 +20,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		commandPool.create(context);
 		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
 		swapChain.createDepthResources(context, commandPool);
-		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject.material.textures, testObject.material.textureMemories);
+		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject);
 		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews);
 		ImageUtils::createImageSampler(context, testObject.material.textureSampler);
 		createVertexBuffer();
