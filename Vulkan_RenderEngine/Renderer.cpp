@@ -23,15 +23,17 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		frameData.createDescriptorSetLayout(context);
 		graphicsPipeline.create(context, swapChain.imageFormat, frameData.descriptorSetLayout);
 		commandPool.create(context);
-		swapChain.createColorResources(context);
+		swapChain.createColorResources(context, commandPool);
 		swapChain.createDepthResources(context, commandPool);
+		createOutputResources();
 
 		//load model
 		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
 
 		//Texture Image, ImageView and sampler
 		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject);
-		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews, testObject.material.mipLevels);
+		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews,
+			testObject.material.mipLevels);
 		ImageUtils::createImageSampler(context, testObject.material.textureSampler);
 
 		//Buffers
@@ -47,8 +49,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		//ImGui setup
 		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
-		(*guiRenderer).init((float)swapChain.extent.width, (float)swapChain.extent.height);
-		(*guiRenderer).initResources();
+		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
+		guiRenderer->initResources();
+		guiRenderer->loadOutputImages(outputSampler, outputImageViews);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -61,7 +64,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 void VulkanRenderer::cleanup()
 {
-	(*guiRenderer).cleanup();
+	guiRenderer->cleanup();
+
+	ImGui_ImplVulkan_Shutdown();
 
 	swapChain.cleanupSwapChain(context);
 
@@ -72,6 +77,15 @@ void VulkanRenderer::cleanup()
 
 	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
+
+	for (int i = 0; i < outputImages.size(); i++)
+	{
+		vkDestroyImage(context.logicalDevice, outputImages[i], nullptr);
+		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
+		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
+	}
+
+	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
 
 	graphicsPipeline.cleanup(context);
 
@@ -109,9 +123,10 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
-	(*guiRenderer).newFrame();
-	(*guiRenderer).updateBuffers(currentFrame, frameData.maxFramesInFlight);
-	(*guiRenderer).recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
+	guiRenderer->newFrame(currentFrame);
+	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
+	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
 	//ImGui rendering End
 
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
@@ -201,15 +216,28 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	ImageUtils::transitionImageLayout(context, commandBuffer, swapChain.colorImage, swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
-	ImageUtils::transitionImageLayout(context, commandBuffer, swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+	VkImageMemoryBarrier2 toColorAttachment{};
+	toColorAttachment.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	toColorAttachment.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	toColorAttachment.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT; // 0 if first use
+	toColorAttachment.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	toColorAttachment.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+	toColorAttachment.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // or SHADER_READ_ONLY_OPTIMAL
+	toColorAttachment.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	toColorAttachment.image = outputImages[currentFrame];
+	toColorAttachment.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	dep.imageMemoryBarrierCount = 1;
+	dep.pImageMemoryBarriers = &toColorAttachment;
+	vkCmdPipelineBarrier2(commandBuffer, &dep);
 
 	VkRenderingAttachmentInfoKHR colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
 	colorAttachment.imageView = swapChain.colorImageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-	colorAttachment.resolveImageView = swapChain.imageViews[imageIndex];
+	colorAttachment.resolveImageView = outputImageViews[currentFrame];
 	colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -273,6 +301,22 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(testObject.mesh.indices.size()), 1, 0, 0, 0);
 
 	vkCmdEndRendering(commandBuffer);
+
+	VkImageMemoryBarrier2 toShaderRead{};
+	toShaderRead.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	toShaderRead.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	toShaderRead.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+	toShaderRead.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	toShaderRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	toShaderRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	toShaderRead.image = outputImages[currentFrame];
+	toShaderRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	VkDependencyInfo depInfo{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	depInfo.imageMemoryBarrierCount = 1;
+	depInfo.pImageMemoryBarriers = &toShaderRead;
+	vkCmdPipelineBarrier2(commandBuffer, &depInfo);
 }
 
 void VulkanRenderer::createVertexBuffer()
@@ -320,4 +364,22 @@ void VulkanRenderer::createIndexBuffer()
 
 	vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
+}
+
+void VulkanRenderer::createOutputResources()
+{
+	outputImages.resize(frameData.maxFramesInFlight);
+	outputImageViews.resize(frameData.maxFramesInFlight);
+	outputImageMemories.resize(frameData.maxFramesInFlight);
+
+	//NEEDS TO BE CHANGED TO WINDOW EXTENT NOT SWAPCHAIN EXTENT
+	for (int i = 0; i < frameData.maxFramesInFlight; i++)
+	{
+		ImageUtils::createImage(context, swapChain.extent.width, swapChain.extent.height, swapChain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			outputImages[i], outputImageMemories[i], 1);
+		ImageUtils::createImageView(context, outputImages[i], swapChain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
+		
+	}
+	ImageUtils::createImageSampler(context, outputSampler);
 }

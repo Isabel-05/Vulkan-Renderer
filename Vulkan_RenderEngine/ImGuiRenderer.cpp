@@ -4,6 +4,7 @@
 #include "Image.h"
 
 #include <iostream>
+#include <string>
 #include "imgui_internal.h"
 
 
@@ -47,7 +48,7 @@ ImGuiRenderer::~ImGuiRenderer()
 
 void ImGuiRenderer::init(float width, float height)
 {
-	// Initialize ImGui (*context)
+	// Initialize ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
@@ -72,24 +73,28 @@ void ImGuiRenderer::init(float width, float height)
 void ImGuiRenderer::cleanup()
 {
 
-	vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
-	vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
-	vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+	vkDestroyImage(context->logicalDevice, fontImage, nullptr);
+	vkFreeMemory(context->logicalDevice, fontImageMemory, nullptr);
+	vkDestroyImageView(context->logicalDevice, fontImageView, nullptr);
 
-	vkDestroySampler((*context).logicalDevice, sampler, nullptr);
-	vkDestroyDescriptorPool((*context).logicalDevice, descriptorPool, nullptr);
-	vkDestroyDescriptorSetLayout((*context).logicalDevice, descriptorSetLayout, nullptr);
-	vkDestroyPipelineCache((*context).logicalDevice, pipelineCache, nullptr);
-	vkDestroyPipelineLayout((*context).logicalDevice, pipelineLayout, nullptr);
-	vkDestroyPipeline((*context).logicalDevice, pipeline, nullptr);
-	//vkDestroyPipeline((*context).logicalDevice, pipeline, nullptr);
+	vkDestroySampler(context->logicalDevice, sampler, nullptr);
+	vkDestroyDescriptorPool(context->logicalDevice, descriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(context->logicalDevice, descriptorSetLayout, nullptr);
+	vkDestroyPipelineCache(context->logicalDevice, pipelineCache, nullptr);
+	vkDestroyPipelineLayout(context->logicalDevice, pipelineLayout, nullptr);
+	vkDestroyPipeline(context->logicalDevice, pipeline, nullptr);
+	//vkDestroyPipeline(context->logicalDevice, pipeline, nullptr);
 	for (size_t i = 0; i < vertexBuffers.size(); i++) {
-		vkDestroyBuffer((*context).logicalDevice, vertexBuffers[i], nullptr);
-		vkFreeMemory((*context).logicalDevice, vertexBufferMemories[i], nullptr);
+		vkDestroyBuffer(context->logicalDevice, vertexBuffers[i], nullptr);
+		vkFreeMemory(context->logicalDevice, vertexBufferMemories[i], nullptr);
 	}
 	for (size_t i = 0; i < indexBuffers.size(); i++) {
-		vkDestroyBuffer((*context).logicalDevice, indexBuffers[i], nullptr);
-		vkFreeMemory((*context).logicalDevice, indexBufferMemories[i], nullptr);
+		vkDestroyBuffer(context->logicalDevice, indexBuffers[i], nullptr);
+		vkFreeMemory(context->logicalDevice, indexBufferMemories[i], nullptr);
+	}
+	for (int i = 0; i < viewportDescriptorSets.size(); i++)
+	{
+		
 	}
 }
 
@@ -105,7 +110,7 @@ void ImGuiRenderer::initResources()
 	samplerInfo.addressModeW = VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;  // 3D consistency
 	samplerInfo.borderColor = VkBorderColor::VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;   // White border for clamped areas
 
-	vkCreateSampler((*context).logicalDevice, &samplerInfo, nullptr, &sampler);                   // Create the GPU sampler object
+	vkCreateSampler(context->logicalDevice, &samplerInfo, nullptr, &sampler);                   // Create the GPU sampler object
 
 	// Create descriptor pool for shader resource binding
 	// Descriptors provide the interface between shaders and GPU resources
@@ -114,11 +119,11 @@ void ImGuiRenderer::initResources()
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VkStructureType::VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;  // Structure type identifier
 	poolInfo.flags = VkDescriptorPoolCreateFlagBits::VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;     // Allow individual descriptor set freeing
-	poolInfo.maxSets = 2;                                                      // Maximum number of descriptor sets
+	poolInfo.maxSets = 16;                                                      // Maximum number of descriptor sets
 	poolInfo.poolSizeCount = 1;                                                // Number of pool size specifications
 	poolInfo.pPoolSizes = &poolSize;                                           // Pool size configuration
 
-	vkCreateDescriptorPool((*context).logicalDevice, &poolInfo, nullptr, &descriptorPool);                   // Create descriptor pool
+	vkCreateDescriptorPool(context->logicalDevice, &poolInfo, nullptr, &descriptorPool);                   // Create descriptor pool
 
 	// Create descriptor set layout defining shader resource interface
 	// This layout must match the binding declarations in the ImGui shaders
@@ -133,7 +138,7 @@ void ImGuiRenderer::initResources()
 	layoutInfo.bindingCount = 1;                                               // Number of bindings in layout
 	layoutInfo.pBindings = &binding;                                           // Binding configuration array
 
-	vkCreateDescriptorSetLayout((*context).logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout);       // Create layout object
+	vkCreateDescriptorSetLayout(context->logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout);       // Create layout object
 
 	// Allocate descriptor set from pool using the defined layout
 	// This creates the actual binding that connects GPU resources to shaders
@@ -144,7 +149,7 @@ void ImGuiRenderer::initResources()
 	VkDescriptorSetLayout layouts[] = { descriptorSetLayout };                // Layout template array
 	allocInfo.pSetLayouts = layouts;                                           // Layout configuration
 
-	vkAllocateDescriptorSets((*context).logicalDevice, &allocInfo, &descriptorSet); // Allocate and store set
+	vkAllocateDescriptorSets(context->logicalDevice, &allocInfo, &descriptorSet); // Allocate and store set
 
 
 	initTexture();
@@ -163,7 +168,7 @@ void ImGuiRenderer::initResources()
 	writeSet.pImageInfo = &imageInfo;                                          // Image resource information
 	writeSet.dstBinding = 0;                                                   // Binding point in shader
 
-	vkUpdateDescriptorSets((*context).logicalDevice, 1, &writeSet, 0, nullptr);                   // Execute the binding update
+	vkUpdateDescriptorSets(context->logicalDevice, 1, &writeSet, 0, nullptr);                   // Execute the binding update
 
 
 	////////////////////////////////////////////////
@@ -173,7 +178,7 @@ void ImGuiRenderer::initResources()
 	// Create pipeline cache
 	VkPipelineCacheCreateInfo pipelineCacheInfo{};
 	pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-	vkCreatePipelineCache((*context).logicalDevice, &pipelineCacheInfo, nullptr, &pipelineCache);
+	vkCreatePipelineCache(context->logicalDevice, &pipelineCacheInfo, nullptr, &pipelineCache);
 
 	// Create pipeline layout
 	VkPushConstantRange pushConstantRange{};
@@ -189,7 +194,7 @@ void ImGuiRenderer::initResources()
 	pipelineLayoutInfo.pushConstantRangeCount = 1;
 	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-	vkCreatePipelineLayout((*context).logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+	vkCreatePipelineLayout(context->logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
 
 	auto vertShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_vert.spv");
 	auto fragShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_frag.spv");
@@ -326,12 +331,32 @@ void ImGuiRenderer::initResources()
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-	if (vkCreateGraphicsPipelines((*context).logicalDevice, pipelineCache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
+	if (vkCreateGraphicsPipelines(context->logicalDevice, pipelineCache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 
-	vkDestroyShaderModule((*context).logicalDevice, vertShaderModule, nullptr);
-	vkDestroyShaderModule((*context).logicalDevice, fragShaderModule, nullptr);
+	vkDestroyShaderModule(context->logicalDevice, vertShaderModule, nullptr);
+	vkDestroyShaderModule(context->logicalDevice, fragShaderModule, nullptr);
+
+	ImGui_ImplVulkan_InitInfo initInfo = {};
+	initInfo.ApiVersion = VK_API_VERSION_1_3;
+	initInfo.UseDynamicRendering = true;
+	initInfo.Device = context->logicalDevice;
+	initInfo.Instance = context->instance;
+	initInfo.DescriptorPool = VK_NULL_HANDLE;
+	initInfo.DescriptorPoolSize = 100;
+	initInfo.PhysicalDevice = context->physicalDevice;
+	initInfo.PipelineCache = pipelineCache;
+	initInfo.Queue = context->graphicsQueue;
+	initInfo.MinImageCount = 2;
+	initInfo.ImageCount = 2;
+	initInfo.Allocator = nullptr;
+	initInfo.CheckVkResultFn = [](VkResult err) {      // very useful while debugging this
+		if (err != VK_SUCCESS) throw std::runtime_error("ImGui Vulkan error: " + std::to_string(err));
+		};
+
+
+	ImGui_ImplVulkan_Init(&initInfo);
 }
 
 void ImGuiRenderer::initTexture()
@@ -380,11 +405,11 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 
 		if (tex->Status == ImTextureStatus_WantCreate) {
 
-			vkDeviceWaitIdle((*context).logicalDevice);
+			vkDeviceWaitIdle(context->logicalDevice);
 
-			vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
-			vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
-			vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+			vkDestroyImage(context->logicalDevice, fontImage, nullptr);
+			vkFreeMemory(context->logicalDevice, fontImageMemory, nullptr);
+			vkDestroyImageView(context->logicalDevice, fontImageView, nullptr);
 
 			// Create optimized GPU image for texture storage
 			VkExtent3D extent{ static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
@@ -412,7 +437,7 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 			writeSet.descriptorType = VkDescriptorType::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			writeSet.pImageInfo = &imageInfo;
 
-			vkUpdateDescriptorSets((*context).logicalDevice, 1, &writeSet, 0, nullptr);
+			vkUpdateDescriptorSets(context->logicalDevice, 1, &writeSet, 0, nullptr);
 		}
 
 
@@ -429,9 +454,9 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 
 		// Copy data to staging buffer
 		void* data;
-		vkMapMemory((*context).logicalDevice, stagingBufferMemory, 0, uploadSize, 0, &data);
+		vkMapMemory(context->logicalDevice, stagingBufferMemory, 0, uploadSize, 0, &data);
 		memcpy(data, fontData, uploadSize);
-		vkUnmapMemory((*context).logicalDevice, stagingBufferMemory);
+		vkUnmapMemory(context->logicalDevice, stagingBufferMemory);
 
 		// Transition image layout and copy data
 		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
@@ -439,8 +464,8 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 		ImageUtils::transitionImageLayout((*context), cmdPool, fontImage, format, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
-		vkDestroyBuffer((*context).logicalDevice, stagingBuffer, nullptr);
-		vkFreeMemory((*context).logicalDevice, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(context->logicalDevice, stagingBuffer, nullptr);
+		vkFreeMemory(context->logicalDevice, stagingBufferMemory, nullptr);
 
 		// Store descriptor set handle as the ImTextureID
 		// In this implementation, we use a single descriptor set for the font atlas
@@ -449,14 +474,50 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 	}
 	if (tex->Status == ImTextureStatus_WantDestroy) {
 		// Handle texture deletion if needed
-		vkDestroyImage((*context).logicalDevice, fontImage, nullptr);
-		vkFreeMemory((*context).logicalDevice, fontImageMemory, nullptr);
-		vkDestroyImageView((*context).logicalDevice, fontImageView, nullptr);
+		vkDestroyImage(context->logicalDevice, fontImage, nullptr);
+		vkFreeMemory(context->logicalDevice, fontImageMemory, nullptr);
+		vkDestroyImageView(context->logicalDevice, fontImageView, nullptr);
 		tex->SetStatus(ImTextureStatus_Destroyed);
 	}
 }
 
-void ImGuiRenderer::newFrame()
+void ImGuiRenderer::loadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews)
+{
+	viewportDescriptorSets.resize(outputImageViews.size());
+	viewportTextureIds.resize(outputImageViews.size());
+
+	for (int i = 0; i < outputImageViews.size(); i++)
+	{
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &descriptorSetLayout;   // YOUR layout, COMBINED_IMAGE_SAMPLER
+
+		if (vkAllocateDescriptorSets(context->logicalDevice, &allocInfo, &viewportDescriptorSets[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate viewport descriptor set!");
+		}
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = outputImageViews[i];
+		imageInfo.sampler = sampler;
+
+		VkWriteDescriptorSet writeSet{};
+		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeSet.dstSet = viewportDescriptorSets[i];
+		writeSet.dstBinding = 0;
+		writeSet.descriptorCount = 1;
+		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeSet.pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(context->logicalDevice, 1, &writeSet, 0, nullptr);
+
+		viewportTextureIds[i] = (ImTextureID)(intptr_t)(VkDescriptorSet)viewportDescriptorSets[i];
+	}
+}
+
+void ImGuiRenderer::newFrame(uint32_t currentFrame)
 {
 	ImGui::NewFrame();
 
@@ -467,7 +528,9 @@ void ImGuiRenderer::newFrame()
 	ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
 
 	ImGui::Begin("Vulkan ImGui Demo");
-	ImGui::ShowStyleEditor();
+	//ImGui::ShowStyleEditor();
+	ImVec2 size = ImGui::GetContentRegionAvail();
+	ImGui::Image((ImTextureID)viewportTextureIds[currentFrame], size);
 
 	if (ImGui::BeginMainMenuBar())
 	{
@@ -489,7 +552,7 @@ void ImGuiRenderer::newFrame()
 		ImGui::EndMainMenuBar();
 	}
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 
 	ImGui::End();
 
@@ -526,8 +589,8 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 	if (drawData->TotalVtxCount > vertexCounts[currentFrame]) {
 
 		// Recreate vertex buffer with new size
-		vkDestroyBuffer((*context).logicalDevice, vertexBuffers[currentFrame], nullptr);
-		vkFreeMemory((*context).logicalDevice, vertexBufferMemories[currentFrame], nullptr);
+		vkDestroyBuffer(context->logicalDevice, vertexBuffers[currentFrame], nullptr);
+		vkFreeMemory(context->logicalDevice, vertexBufferMemories[currentFrame], nullptr);
 
 		BufferUtils::createBuffer(
 			(*context),
@@ -543,8 +606,8 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 	if (drawData->TotalIdxCount > indexCounts[currentFrame]) {
 		// Recreate index buffer with new size
 
-		vkDestroyBuffer((*context).logicalDevice, indexBuffers[currentFrame], nullptr);
-		vkFreeMemory((*context).logicalDevice, indexBufferMemories[currentFrame], nullptr);
+		vkDestroyBuffer(context->logicalDevice, indexBuffers[currentFrame], nullptr);
+		vkFreeMemory(context->logicalDevice, indexBufferMemories[currentFrame], nullptr);
 
 		BufferUtils::createBuffer(
 			(*context),
@@ -561,8 +624,8 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 	ImDrawVert* vtxDst = nullptr;
 	ImDrawIdx* idxDst = nullptr;
 
-	vkMapMemory((*context).logicalDevice, vertexBufferMemories[currentFrame], 0, VK_WHOLE_SIZE, 0, (void**)&vtxDst);
-	vkMapMemory((*context).logicalDevice, indexBufferMemories[currentFrame], 0, VK_WHOLE_SIZE, 0, (void**)&idxDst);
+	vkMapMemory(context->logicalDevice, vertexBufferMemories[currentFrame], 0, VK_WHOLE_SIZE, 0, (void**)&vtxDst);
+	vkMapMemory(context->logicalDevice, indexBufferMemories[currentFrame], 0, VK_WHOLE_SIZE, 0, (void**)&idxDst);
 
 	for (int n = 0; n < drawData->CmdListsCount; n++) {
 		const ImDrawList* cmdList = drawData->CmdLists[n];
@@ -572,8 +635,8 @@ void ImGuiRenderer::updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFli
 		idxDst += cmdList->IdxBuffer.Size;
 	}
 
-	vkUnmapMemory((*context).logicalDevice, vertexBufferMemories[currentFrame]);
-	vkUnmapMemory((*context).logicalDevice, indexBufferMemories[currentFrame]);
+	vkUnmapMemory(context->logicalDevice, vertexBufferMemories[currentFrame]);
+	vkUnmapMemory(context->logicalDevice, indexBufferMemories[currentFrame]);
 }
 
 void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView)
@@ -598,8 +661,9 @@ void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& comm
 	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 	colorAttachment.imageView = imageView;                      // your current frame's image view
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;             // LOAD to not clear the 3D scene underneath
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;             // LOAD to not clear the 3D scene underneath
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_NONE;
+	colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	VkRenderingInfo renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;

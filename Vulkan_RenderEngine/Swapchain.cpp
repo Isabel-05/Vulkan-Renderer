@@ -2,7 +2,6 @@
 #include "Swapchain.h"
 #include "imgui.h"
 #include <glm/glm.hpp>
-#include <array>
 
 void Swapchain::createSwapchain(VulkanContext& context)
 {
@@ -112,11 +111,14 @@ void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPoo
 	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
-void Swapchain::createColorResources(VulkanContext& context)
+void Swapchain::createColorResources(VulkanContext& context, CommandPool& cmdPool)
 {
 	ImageUtils::createImage(context, extent.width, extent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory, 1, context.msaaSamples);
 	ImageUtils::createImageView(context, colorImage, imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, colorImageView, 1);
+
+	ImageUtils::transitionImageLayout(context, cmdPool, colorImage, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+
 }
 
 void Swapchain::cleanupSwapChain(VulkanContext& context)
@@ -153,7 +155,7 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool)
 
 	createSwapchain(context);
 	createImageViews(context);
-	createColorResources(context);
+	createColorResources(context, cmdPool);
 	createDepthResources(context, cmdPool);
 	ImGuiIO& io = ImGui::GetIO();
 	io.DisplaySize = ImVec2(static_cast<float>(extent.width),

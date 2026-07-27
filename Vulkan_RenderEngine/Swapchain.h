@@ -28,7 +28,7 @@ public:
 	void createSwapchain(VulkanContext& context);
 	void createImageViews(VulkanContext& context);
 	void createDepthResources(VulkanContext& context, CommandPool& cmdPool);
-	void createColorResources(VulkanContext& context);
+	void createColorResources(VulkanContext& context, CommandPool& cmdPool);
 	void cleanupSwapChain(VulkanContext& context);
 	void recreateSwapChain(VulkanContext& context, CommandPool& cmdPool);
 

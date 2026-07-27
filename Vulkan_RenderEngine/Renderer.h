@@ -32,6 +32,14 @@ public:
 	Camera camera;
 	FrameData frameData;
 
+
+	//Output
+	std::vector<VkImage> outputImages;
+	std::vector<VkImageView> outputImageViews;
+	std::vector<VkDeviceMemory> outputImageMemories;
+
+	VkSampler outputSampler;
+
 private:
 
 
@@ -52,5 +60,7 @@ private:
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+	void createOutputResources();
 };
 

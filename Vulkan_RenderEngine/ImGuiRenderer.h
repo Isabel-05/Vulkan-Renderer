@@ -26,15 +26,16 @@ public:
 	ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight);
 	~ImGuiRenderer();
 
-	void init(float width, float height);                   
+	void init(float width, float height);
 	void cleanup();                                            
 	void initResources();                                                          
 	void initTexture();
 	void setStyle();
 	void updateTexture(CommandPool& cmdPool, ImTextureData* tex);                 // Dynamically update/create textures 
+	void loadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
-	void newFrame();                                         // Begin new ImGui frame and generate geometry
+	void newFrame(uint32_t currentFrame);                                         // Begin new ImGui frame and generate geometry
 	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);   // Upload updated geometry to GPU buffers
 	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); // Record rendering commands to command buffer
 
@@ -47,8 +48,10 @@ public:
 
 private:
 
-	// Core GPU rendering resources for UI display
+	std::vector<VkDescriptorSet> viewportDescriptorSets;
+	std::vector<ImTextureID> viewportTextureIds;
 
+	// Core GPU rendering resources for UI display
 	std::vector<VkBuffer> vertexBuffers;                                    
 	std::vector<VkBuffer> indexBuffers;   
 	std::vector<VkDeviceMemory> vertexBufferMemories;
