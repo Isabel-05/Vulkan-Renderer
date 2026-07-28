@@ -61,7 +61,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 
-	if (ImGui::GetIO().WantCaptureMouse)
+	if (!app->guiRenderer->isViewportHovered())
 	{
 		app->guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
 		return;

@@ -528,31 +528,19 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
 
 	ImGui::Begin("Vulkan ImGui Demo");
-	//ImGui::ShowStyleEditor();
+	
+	//make sure inputs within the viewport work ie camera
+	viewportPos = ImGui::GetWindowPos();
+	viewportSize = ImGui::GetWindowSize();
+	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
+	viewportPos.y -= 100; //make sure the tab/window can still be selected
+	viewportPos.y += 10;  //make sure the resize thingy can still be selected
+	bottomright.y -= 10;  //make sure the resize thingy can still be selected
+	bottomright.x -= 10;  //make sure the resize thingy can still be selected
+	viewportHovered = ImGui::IsMouseHoveringRect(viewportPos, bottomright);
+
 	ImVec2 size = ImGui::GetContentRegionAvail();
 	ImGui::Image((ImTextureID)viewportTextureIds[currentFrame], size);
-
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Open File")) {}
-			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Edit"))
-		{
-			if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
-			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, false)) {} // Disabled item
-			ImGui::Separator();
-			if (ImGui::MenuItem("Cut", "Ctrl+X")) {}
-			if (ImGui::MenuItem("Copy", "Ctrl+C")) {}
-			if (ImGui::MenuItem("Paste", "Ctrl+V")) {}
-			ImGui::EndMenu();
-		}
-		ImGui::EndMainMenuBar();
-	}
-
-	//ImGui::ShowDemoWindow();
 
 	ImGui::End();
 

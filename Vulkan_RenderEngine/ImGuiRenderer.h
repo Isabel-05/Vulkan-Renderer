@@ -46,6 +46,10 @@ public:
 	bool getWantKeyCapture();                               // Query if ImGui wants keyboard focus
 	void charPressed(uint32_t key);                         // Handle character input for text widgets
 
+	bool isViewportHovered() { return viewportHovered; }
+	ImVec2 getViewportPos() { return viewportPos; }
+	ImVec2 getViewportSize() { return viewportSize; }
+
 private:
 
 	std::vector<VkDescriptorSet> viewportDescriptorSets;
@@ -88,5 +92,8 @@ private:
 	VkPipelineRenderingCreateInfo renderingInfo{};        // Dynamic rendering setup parameters
 	VkFormat colorFormat = VkFormat::VK_FORMAT_B8G8R8A8_SRGB;   // Target framebuffer format
 
+	bool viewportHovered = false;
+	ImVec2 viewportPos = ImVec2(0, 0);
+	ImVec2 viewportSize = ImVec2(0, 0);
 };
 
