@@ -533,14 +533,36 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	viewportPos = ImGui::GetWindowPos();
 	viewportSize = ImGui::GetWindowSize();
 	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
-	viewportPos.y -= 100; //make sure the tab/window can still be selected
-	viewportPos.y += 10;  //make sure the resize thingy can still be selected
-	bottomright.y -= 10;  //make sure the resize thingy can still be selected
-	bottomright.x -= 10;  //make sure the resize thingy can still be selected
-	viewportHovered = ImGui::IsMouseHoveringRect(viewportPos, bottomright);
+	ImVec2 topLeft = viewportPos;
+	topLeft.y -= 100; //make sure the tab/window can still be selected
+	topLeft.y += 20;  //make sure the resize thingy can still be selected
+	bottomright.y -= 15;  //make sure the resize thingy can still be selected
+	bottomright.x -= 15;  //make sure the resize thingy can still be selected
+	viewportHovered = ImGui::IsMouseHoveringRect(topLeft, bottomright);
 
-	ImVec2 size = ImGui::GetContentRegionAvail();
-	ImGui::Image((ImTextureID)viewportTextureIds[currentFrame], size);
+	//ImVec2 avail = ImGui::GetContentRegionAvail();
+	//float texAspect = 1800 / 1200; // your actual render target dims
+
+	//ImVec2 imageSize = avail;
+	//if (avail.x / avail.y > texAspect) {
+	//	// panel wider than image -> constrain by height
+	//	imageSize.x = avail.y * texAspect;
+	//	imageSize.y = avail.y;
+	//}
+	//else {
+	//	// panel taller than image -> constrain by width
+	//	imageSize.x = avail.x;
+	//	imageSize.y = avail.x / texAspect;
+	//}
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec2 avail = ImGui::GetContentRegionAvail();
+	ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
+	// center within the available region
+	ImVec2 cursor = ImGui::GetCursorPos();
+	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
+	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
+
+	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
 
 	ImGui::End();
 
@@ -553,7 +575,6 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	ImDrawData* drawData = ImGui::GetDrawData();
 	drawData->CmdListsCount = drawData->CmdLists.Size;
 
-	ImGuiIO& io = ImGui::GetIO();
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		GLFWwindow* backup_current_context = glfwGetCurrentContext();
 		ImGui::UpdatePlatformWindows();
