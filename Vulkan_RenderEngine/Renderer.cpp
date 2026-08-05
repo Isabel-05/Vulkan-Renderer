@@ -26,6 +26,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		swapChain.createColorResources(context, commandPool);
 		swapChain.createDepthResources(context, commandPool);
 		createOutputResources();
+		ImageUtils::createImageSampler(context, outputSampler);
 
 		//load model
 		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
@@ -78,13 +79,7 @@ void VulkanRenderer::cleanup()
 	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
 
-	for (int i = 0; i < outputImages.size(); i++)
-	{
-		vkDestroyImage(context.logicalDevice, outputImages[i], nullptr);
-		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
-		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
-	}
-
+	cleanupOutputResources();
 	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
 
 	graphicsPipeline.cleanup(context);
@@ -114,8 +109,6 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	guiRenderer->newFrame(currentFrame);
-
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
 	vkResetFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame]);
@@ -125,6 +118,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
+	guiRenderer->newFrame(currentFrame);
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
@@ -175,8 +169,9 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
 		swapChain.recreateSwapChain(context, commandPool);
-		guiRenderer->updateBuffers(0, 2);
-		guiRenderer->updateBuffers(1, 2);
+		cleanupOutputResources();
+		createOutputResources();
+		guiRenderer->reloadOutputImages(outputSampler, outputImageViews);
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
@@ -385,5 +380,15 @@ void VulkanRenderer::createOutputResources()
 		ImageUtils::createImageView(context, outputImages[i], swapChain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
 		
 	}
-	ImageUtils::createImageSampler(context, outputSampler);
+
+}
+
+void VulkanRenderer::cleanupOutputResources()
+{
+	for (int i = 0; i < outputImages.size(); i++)
+	{
+		vkDestroyImage(context.logicalDevice, outputImages[i], nullptr);
+		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
+		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
+	}
 }

@@ -83,7 +83,7 @@ void ImGuiRenderer::cleanup()
 	vkDestroyPipelineCache(context->logicalDevice, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(context->logicalDevice, pipelineLayout, nullptr);
 	vkDestroyPipeline(context->logicalDevice, pipeline, nullptr);
-	//vkDestroyPipeline(context->logicalDevice, pipeline, nullptr);
+
 	for (size_t i = 0; i < vertexBuffers.size(); i++) {
 		vkDestroyBuffer(context->logicalDevice, vertexBuffers[i], nullptr);
 		vkFreeMemory(context->logicalDevice, vertexBufferMemories[i], nullptr);
@@ -517,6 +517,32 @@ void ImGuiRenderer::loadOutputImages(VkSampler& sampler, std::vector<VkImageView
 	}
 }
 
+void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews)
+{
+	viewportDescriptorSets.resize(outputImageViews.size());
+	viewportTextureIds.resize(outputImageViews.size());
+
+	for (int i = 0; i < outputImageViews.size(); i++)
+	{
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = outputImageViews[i];
+		imageInfo.sampler = sampler;
+
+		VkWriteDescriptorSet writeSet{};
+		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeSet.dstSet = viewportDescriptorSets[i];
+		writeSet.dstBinding = 0;
+		writeSet.descriptorCount = 1;
+		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeSet.pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(context->logicalDevice, 1, &writeSet, 0, nullptr);
+
+		viewportTextureIds[i] = (ImTextureID)(intptr_t)(VkDescriptorSet)viewportDescriptorSets[i];
+	}
+}
+
 void ImGuiRenderer::newFrame(uint32_t currentFrame)
 {
 	ImGui::NewFrame();
@@ -540,20 +566,6 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	bottomright.x -= 15;  //make sure the resize thingy can still be selected
 	viewportHovered = ImGui::IsMouseHoveringRect(topLeft, bottomright);
 
-	//ImVec2 avail = ImGui::GetContentRegionAvail();
-	//float texAspect = 1800 / 1200; // your actual render target dims
-
-	//ImVec2 imageSize = avail;
-	//if (avail.x / avail.y > texAspect) {
-	//	// panel wider than image -> constrain by height
-	//	imageSize.x = avail.y * texAspect;
-	//	imageSize.y = avail.y;
-	//}
-	//else {
-	//	// panel taller than image -> constrain by width
-	//	imageSize.x = avail.x;
-	//	imageSize.y = avail.x / texAspect;
-	//}
 	ImGuiIO& io = ImGui::GetIO();
 	ImVec2 avail = ImGui::GetContentRegionAvail();
 	ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
@@ -562,7 +574,10 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
 	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
 
+	ImGui::BeginChild("ViewportChild", ImVec2(0, 0), false,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
+	ImGui::EndChild();
 
 	ImGui::End();
 

@@ -33,6 +33,7 @@ public:
 	void setStyle();
 	void updateTexture(CommandPool& cmdPool, ImTextureData* tex);                 // Dynamically update/create textures 
 	void loadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
+	void reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
 	void newFrame(uint32_t currentFrame);                                         // Begin new ImGui frame and generate geometry

@@ -62,5 +62,6 @@ private:
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
 	void createOutputResources();
+	void cleanupOutputResources();
 };
 
