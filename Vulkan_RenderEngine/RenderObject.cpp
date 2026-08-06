@@ -8,7 +8,7 @@
 
 
 void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
-	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight)
+	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ModelUtil::loadObjFile(modelPath, mesh.vertices, mesh.indices);
 	scale = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -18,7 +18,7 @@ void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::strin
 	ImageUtils::createTextureImage(context, cmdPool, texturePath, material.texture, material.textureMemory, material.mipLevels);
 	ImageUtils::createImageView(context, material.texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, material.textureImageView, material.mipLevels);
 	ImageUtils::createImageSampler(context, material.textureSampler);
-	material.createDescriptorSets(context, pool, descriptorSetLayout, maxFramesInFlight);
+	material.createDescriptorSets(context, pool, descriptorSetLayout);
 	
 
 	mesh.upload(context, cmdPool);
@@ -54,38 +54,35 @@ void Mesh::cleanup(VulkanContext& context)
 	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
 }
 
-void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight)
+void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, descriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> layout(1, descriptorSetLayout);
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = pool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
-	allocInfo.pSetLayouts = layouts.data();
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = layout.data();
 
-	descriptorSets.resize(maxFramesInFlight);
-	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, &descriptorSet) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 
-	for (size_t i = 0; i < maxFramesInFlight; i++) {
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = textureImageView;
+	imageInfo.sampler = textureSampler;
 
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureImageView;
-		imageInfo.sampler = textureSampler;
+	VkWriteDescriptorSet descriptorWrites{};
 
-		VkWriteDescriptorSet descriptorWrites{};
+	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites.dstSet = descriptorSet;
+	descriptorWrites.dstBinding = 1;
+	descriptorWrites.dstArrayElement = 0;
+	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites.descriptorCount = 1;
+	descriptorWrites.pImageInfo = &imageInfo;
+	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
 
-		descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites.dstSet = descriptorSets[i];
-		descriptorWrites.dstBinding = 1;
-		descriptorWrites.dstArrayElement = 0;
-		descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites.descriptorCount = 1;
-		descriptorWrites.pImageInfo = &imageInfo;
-		vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-	}
 }
 
 void Material::cleanup(VulkanContext& context)

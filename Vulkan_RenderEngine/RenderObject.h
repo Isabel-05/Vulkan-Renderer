@@ -35,9 +35,9 @@ struct Material
 
 	//std::string shaderPath;
 
-	std::vector<VkDescriptorSet> descriptorSets;
+	VkDescriptorSet descriptorSet;
 
-	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight);
+	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	void cleanup(VulkanContext& context);
 };
@@ -57,7 +57,7 @@ public:
 	glm::mat4 getModelMatrix() const;
 
 	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
-		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight);
+		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	void cleanup(VulkanContext& context);
 };

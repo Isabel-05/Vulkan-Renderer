@@ -40,12 +40,12 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 
 		RenderObject firstObject;
-		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout, frameData.maxFramesInFlight);
+		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
 		firstObject.rotation.x = 270.0f;
 		firstObject.name = "numba 1";
 		objectHierarchy.push_back(firstObject);
 		RenderObject secondObject;
-		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout, frameData.maxFramesInFlight);
+		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
 		secondObject.name = "numba 2";
 		objectHierarchy.push_back(secondObject);
 		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
@@ -260,7 +260,8 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		vkCmdBindIndexBuffer(commandBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 		//bind descriptor sets (for passing uniform buffer data to shaders)
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.cameraDescriptorSets[currentFrame], 0, nullptr);
+		VkDescriptorSet sets[] = { frameData.cameraDescriptorSets[currentFrame], obj.material.descriptorSet };
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 2, sets, 0, nullptr);
 
 		//push constants (for passing model matrix to vertex shader)
 		glm::mat4 modelMatrix = obj.getModelMatrix();
