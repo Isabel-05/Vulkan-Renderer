@@ -17,6 +17,8 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 
+#include "RenderObject.h"
+
 class VulkanContext;
 
 
@@ -38,7 +40,7 @@ public:
 	void reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
-	void newFrame(uint32_t currentFrame);
+	void newFrame(uint32_t currentFrame, RenderObject& testObj);
 	void setupDockspace(ImGuiID dockspace_id);
 	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);
 	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); 

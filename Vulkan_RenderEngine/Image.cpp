@@ -66,13 +66,12 @@ namespace ImageUtils
 		}
 	}
 
-	void createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath, RenderObject& rdrObject)
+	void createTextureImage(VulkanContext& context, CommandPool& cmdPool, std::string texPath, VkImage& image, VkDeviceMemory& imageMemory, uint32_t& mipLvls)
 	{
-
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(texPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
-		rdrObject.material.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+		mipLvls = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
@@ -80,7 +79,8 @@ namespace ImageUtils
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
-		BufferUtils::createBuffer(context, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+		BufferUtils::createBuffer(context, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer, stagingBufferMemory);
 
 		void* data;
 		vkMapMemory(context.logicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
@@ -89,26 +89,21 @@ namespace ImageUtils
 
 		stbi_image_free(pixels);
 
-		createImage(context, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, rdrObject.material.textures, rdrObject.material.textureMemories, rdrObject.material.mipLevels);
+		createImage(context, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory, mipLvls);
 
 		//transition layout into optimal Destination layout
-		transitionImageLayout(context, cmdPool, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, rdrObject.material.mipLevels);
+		transitionImageLayout(context, cmdPool, image, VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLvls);
 
 		//Loads actual pixel data into image memory
-		BufferUtils::copyBufferToImage(context, cmdPool, stagingBuffer, rdrObject.material.textures, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+		BufferUtils::copyBufferToImage(context, cmdPool, stagingBuffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
-
-		generateMipMaps(context, cmdPool, rdrObject.material.textures, texWidth, texHeight, rdrObject.material.mipLevels);
-		//transition layout into shader readable optimal layout
-		//transitionImageLayout(context, cmdPool, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, rdrObject.material.mipLevels);
+		generateMipMaps(context, cmdPool, image, texWidth, texHeight, mipLvls);
 
 		vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
-
-		//createImageView(context, rdrObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, rdrObject.material.textureImageViews, rdrObject.material.mipLevels);
 	}
 
 	void createImageSampler(VulkanContext& context, VkSampler& textureSampler)

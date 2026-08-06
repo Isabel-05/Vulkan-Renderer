@@ -3,6 +3,7 @@
 #include "BufferUtils.h"
 #include "Image.h"
 
+
 #include <iostream>
 #include <string>
 #include "imgui_internal.h"
@@ -549,7 +550,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(uint32_t currentFrame)
+void ImGuiRenderer::newFrame(uint32_t currentFrame, RenderObject& testObj)
 {
 	ImGui::NewFrame();
 
@@ -596,7 +597,19 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 	/////////////////
 	//OBJECT PROPERTIES
 
+	static float rotationX = 0;
+	static float rotationY = 0;
+	static float rotationZ = 0;
+
 	ImGui::Begin("Object Properties");
+	ImGui::SliderFloat("rotation x", &rotationX, 0.0f, 360.0f);
+	ImGui::SliderFloat("rotation y", &rotationY, 0.0f, 360.0f);
+	ImGui::SliderFloat("rotation z", &rotationZ, 0.0f, 360.0f);
+
+	testObj.rotation.x = glm::radians(rotationX);
+	testObj.rotation.y = glm::radians(rotationY);
+	testObj.rotation.z = glm::radians(rotationZ);
+
 	ImGui::End();	
 
 	////////////////////////////

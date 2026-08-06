@@ -35,18 +35,10 @@ private:
 	CommandPool commandPool;
 	FrameData frameData;
 
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
-
-
 	RenderObject testObject;
 
 	uint32_t currentFrame = 0;
 
-	void createVertexBuffer();
-	void createIndexBuffer();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 };

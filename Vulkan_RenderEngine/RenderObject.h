@@ -1,5 +1,7 @@
 #pragma once
 #include "VulkanContext.h"
+#include "CommandPool.h"
+
 #include "Vertex.h"
 #include <string>
 
@@ -14,14 +16,22 @@ struct Mesh
 {
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
+
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+
+	void upload(VulkanContext& context, CommandPool& cmdPool);
+	void cleanup(VulkanContext& context);
 };
 
 struct Material
 {
 	void cleanup(VulkanContext& context);
-	VkImage textures;
-	VkDeviceMemory textureMemories;	
-	VkImageView textureImageViews;
+	VkImage texture;
+	VkDeviceMemory textureMemory;	
+	VkImageView textureImageView;
 	uint32_t mipLevels;
 	VkSampler textureSampler;
 	std::string shaderPath;
@@ -30,8 +40,9 @@ struct Material
 class RenderObject
 {
 public:
-	void init(std::string modelPath, std::vector<std::string> texturePaths, std::string shaderPath);
+	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath);
 	void cleanup(VulkanContext& context);
+	glm::mat4 getModelMatrix() const;
 
 	glm::vec3 position;
 	glm::vec3 rotation;

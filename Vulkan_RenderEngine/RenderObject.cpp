@@ -3,6 +3,64 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
 
+#include "BufferUtils.h"
+#include "Image.h"
+
+
+void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath)
+{
+	ModelUtil::loadObjFile(modelPath, mesh.vertices, mesh.indices);
+	scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	position = glm::vec3(0.0f, 0.0f, 1.0f);
+	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+
+	ImageUtils::createTextureImage(context, cmdPool, texturePath, material.texture, material.textureMemory, material.mipLevels);
+	ImageUtils::createImageView(context, material.texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, material.textureImageView, material.mipLevels);
+	ImageUtils::createImageSampler(context, material.textureSampler);
+
+	mesh.upload(context, cmdPool);
+}
+
+glm::mat4 RenderObject::getModelMatrix() const
+{
+	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
+	modelMatrix = glm::rotate(modelMatrix, rotation.x, glm::vec3(1, 0, 0));
+	modelMatrix = glm::rotate(modelMatrix, rotation.y, glm::vec3(0, 1, 0));
+	modelMatrix = glm::rotate(modelMatrix, rotation.z, glm::vec3(0, 0, 1));
+	modelMatrix = glm::scale(modelMatrix, scale);
+	return modelMatrix;
+}
+
+void Mesh::upload(VulkanContext& context, CommandPool& cmdPool)
+{
+	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertices, vertexBuffer, vertexBufferMemory);
+	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
+}
+
+void RenderObject::cleanup(VulkanContext& context)
+{
+	material.cleanup(context);
+	mesh.cleanup(context);
+}
+
+void Mesh::cleanup(VulkanContext& context)
+{
+	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
+	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
+}
+
+void Material::cleanup(VulkanContext& context)
+{
+	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
+	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
+
+	vkDestroyImage(context.logicalDevice, texture, nullptr);
+	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
+}
+
+
 namespace ModelUtil
 {
 	void loadObjFile(std::string filePath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
@@ -39,23 +97,9 @@ namespace ModelUtil
 			}
 		}
 
-		for (auto& vertex : vertices) {
-			vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-			vertex.pos.z -= 1.0f;
-		}
+		//for (auto& vertex : vertices) {
+		//	vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		//	vertex.pos.z -= 1.0f;
+		//}
 	}
-}
-
-void Material::cleanup(VulkanContext& context)
-{
-	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
-	vkDestroyImageView(context.logicalDevice, textureImageViews, nullptr);
-
-	vkDestroyImage(context.logicalDevice, textures, nullptr);
-	vkFreeMemory(context.logicalDevice, textureMemories, nullptr);
-}
-
-void RenderObject::cleanup(VulkanContext& context)
-{
-	material.cleanup(context);
 }

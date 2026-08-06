@@ -27,23 +27,12 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		swapChain.createDepthResources(context, commandPool);
 		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
 
-		//load model
-		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
-
-		//Texture Image, ImageView and sampler
-		ImageUtils::createTextureImage(context, commandPool, TEXTURE_PATH, testObject);
-		ImageUtils::createImageView(context, testObject.material.textures, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, testObject.material.textureImageViews,
-			testObject.material.mipLevels);
-		ImageUtils::createImageSampler(context, testObject.material.textureSampler);
-
-		//Buffers
-		createVertexBuffer();
-		createIndexBuffer();
+		testObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
 
 		//Rendering loop resources
 		frameData.createUniformBuffers(context);
 		frameData.createDescriptorPool(context);
-		frameData.createDescriptorSets(context, testObject.material.textureImageViews, testObject.material.textureSampler);
+		frameData.createDescriptorSets(context, testObject.material.textureImageView, testObject.material.textureSampler);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
@@ -70,12 +59,6 @@ void VulkanRenderer::cleanup()
 	swapChain.cleanupSwapChain(context);
 
 	testObject.cleanup(context);
-
-	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
-
-	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
 
 	graphicsPipeline.cleanup(context);
 
@@ -113,7 +96,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
-	guiRenderer->newFrame(currentFrame);
+	guiRenderer->newFrame(currentFrame, testObject);
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
@@ -164,6 +147,9 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
 		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
+
+		ImGuiIO& io = ImGui::GetIO();
+		io.DisplaySize = ImVec2(static_cast<float>(swapChain.extent.width), static_cast<float>(swapChain.extent.height));
 		guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 	}
 	else if (result != VK_SUCCESS) {
@@ -238,11 +224,11 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//second parameter decides if its a graphics or compute pipeline
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.handle);
 
-	VkBuffer vertexBuffers[] = { vertexBuffer };
+	VkBuffer vertexBuffers[] = { testObject.mesh.vertexBuffer };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, testObject.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	//set our dynamic viewport and scissor
 	VkViewport viewport{};
@@ -262,6 +248,10 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	//bind descriptor sets (for passing uniform buffer data to shaders)
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.descriptorSets[currentFrame], 0, nullptr);
+
+	//push constants (for passing model matrix to vertex shader)
+	glm::mat4 modelMatrix = testObject.getModelMatrix();
+	vkCmdPushConstants(commandBuffer, graphicsPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
 
 	//Draw command
 	//parameter 3: vertex count
@@ -292,58 +282,10 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
 	UniformBufferObject ubo{};
-	ubo.model = glm::mat4(1.0f);
 	ubo.view = viewMatrix;
 	ubo.proj = projectionMatrix;
 	ubo.proj[1][1] *= -1;
 
 	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
-}
-
-void VulkanRenderer::createVertexBuffer()
-{
-	
-	VkDeviceSize bufferSize = sizeof(testObject.mesh.vertices[0]) * testObject.mesh.vertices.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	//VK_BUFFER_USAGE_TRANSFER_SRC_BIT: Buffer can be used as source in a memory transfer operation.
-	//VK_BUFFER_USAGE_TRANSFER_DST_BIT: Buffer can be used as destination in a memory transfer operation.
-	BufferUtils::createBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(context.logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, testObject.mesh.vertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(context.logicalDevice, stagingBufferMemory);
-
-	//specify that we only want to use the vertex buffer as destination for transfer and as vertex buffer
-	BufferUtils::createBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-
-	BufferUtils::copyBuffer(context, commandPool, stagingBuffer, vertexBuffer, bufferSize);
-
-	vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
-}
-
-void VulkanRenderer::createIndexBuffer()
-{
-	VkDeviceSize bufferSize = sizeof(testObject.mesh.indices[0]) * testObject.mesh.indices.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	BufferUtils::createBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(context.logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, testObject.mesh.indices.data(), (size_t)bufferSize);
-	vkUnmapMemory(context.logicalDevice, stagingBufferMemory);
-
-	BufferUtils::createBuffer(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
-	BufferUtils::copyBuffer(context, commandPool, stagingBuffer, indexBuffer, bufferSize);
-
-	vkDestroyBuffer(context.logicalDevice, stagingBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
 }
 
