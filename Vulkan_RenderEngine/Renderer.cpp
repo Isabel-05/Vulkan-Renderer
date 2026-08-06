@@ -25,8 +25,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		commandPool.create(context);
 		swapChain.createColorResources(context, commandPool);
 		swapChain.createDepthResources(context, commandPool);
-		createOutputResources();
-		ImageUtils::createImageSampler(context, outputSampler);
+		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
 
 		//load model
 		ModelUtil::loadObjFile(MODEL_PATH, testObject.mesh.vertices, testObject.mesh.indices);
@@ -51,8 +50,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		//ImGui setup
 		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
-		guiRenderer->initResources();
-		guiRenderer->loadOutputImages(outputSampler, outputImageViews);
+		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -79,9 +77,6 @@ void VulkanRenderer::cleanup()
 	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
 
-	cleanupOutputResources();
-	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
-
 	graphicsPipeline.cleanup(context);
 
 	frameData.cleanup(context, swapChain.imageCount);
@@ -102,7 +97,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 
 	//Check if swap chain is out of date (e.g. window resized) and needs to be recreated
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		swapChain.recreateSwapChain(context, commandPool);
+		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
 		return;
 	}
 	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -168,38 +163,14 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
-		swapChain.recreateSwapChain(context, commandPool);
-		cleanupOutputResources();
-		createOutputResources();
-		guiRenderer->reloadOutputImages(outputSampler, outputImageViews);
+		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
+		guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
 	}
 
 	currentFrame = (currentFrame + 1) % frameData.maxFramesInFlight;
-}
-
-void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
-{
-	//static auto startTime = std::chrono::high_resolution_clock::now();
-
-	//auto currentTime = std::chrono::high_resolution_clock::now();
-	//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-	//UniformBufferObject ubo{};
-	//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 10.0f);
-	////different coordinate system in vulkan than opengl, so we flip the y coordinate of the clip space in the projection matrix
-
-	UniformBufferObject ubo{};
-	ubo.model = glm::mat4(1.0f);
-	ubo.view = viewMatrix;
-	ubo.proj = projectionMatrix;
-	ubo.proj[1][1] *= -1;
-
-	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
 
 void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -222,7 +193,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	toColorAttachment.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
 	toColorAttachment.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // or SHADER_READ_ONLY_OPTIMAL
 	toColorAttachment.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	toColorAttachment.image = outputImages[currentFrame];
+	toColorAttachment.image = swapChain.outputImages[currentFrame];
 	toColorAttachment.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 	VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
@@ -235,7 +206,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	colorAttachment.imageView = swapChain.colorImageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-	colorAttachment.resolveImageView = outputImageViews[currentFrame];
+	colorAttachment.resolveImageView = swapChain.outputImageViews[currentFrame];
 	colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -309,13 +280,24 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	toShaderRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 	toShaderRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	toShaderRead.image = outputImages[currentFrame];
+	toShaderRead.image = swapChain.outputImages[currentFrame];
 	toShaderRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 	VkDependencyInfo depInfo{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
 	depInfo.imageMemoryBarrierCount = 1;
 	depInfo.pImageMemoryBarriers = &toShaderRead;
 	vkCmdPipelineBarrier2(commandBuffer, &depInfo);
+}
+
+void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
+{
+	UniformBufferObject ubo{};
+	ubo.model = glm::mat4(1.0f);
+	ubo.view = viewMatrix;
+	ubo.proj = projectionMatrix;
+	ubo.proj[1][1] *= -1;
+
+	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
 
 void VulkanRenderer::createVertexBuffer()
@@ -365,30 +347,3 @@ void VulkanRenderer::createIndexBuffer()
 	vkFreeMemory(context.logicalDevice, stagingBufferMemory, nullptr);
 }
 
-void VulkanRenderer::createOutputResources()
-{
-	outputImages.resize(frameData.maxFramesInFlight);
-	outputImageViews.resize(frameData.maxFramesInFlight);
-	outputImageMemories.resize(frameData.maxFramesInFlight);
-
-	//NEEDS TO BE CHANGED TO WINDOW EXTENT NOT SWAPCHAIN EXTENT
-	for (int i = 0; i < frameData.maxFramesInFlight; i++)
-	{
-		ImageUtils::createImage(context, swapChain.extent.width, swapChain.extent.height, swapChain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			outputImages[i], outputImageMemories[i], 1);
-		ImageUtils::createImageView(context, outputImages[i], swapChain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
-		
-	}
-
-}
-
-void VulkanRenderer::cleanupOutputResources()
-{
-	for (int i = 0; i < outputImages.size(); i++)
-	{
-		vkDestroyImage(context.logicalDevice, outputImages[i], nullptr);
-		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
-		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
-	}
-}

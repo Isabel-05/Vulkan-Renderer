@@ -28,7 +28,9 @@ public:
 
 	void init(float width, float height);
 	void cleanup();                                            
-	void initResources();                                                          
+	void initResources();
+	void createPipeline();
+	void initImguiVulkanImpl();
 	void initTexture();
 	void setStyle();
 	void updateTexture(CommandPool& cmdPool, ImTextureData* tex);                 // Dynamically update/create textures 
@@ -36,9 +38,10 @@ public:
 	void reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
-	void newFrame(uint32_t currentFrame);                                         // Begin new ImGui frame and generate geometry
-	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);   // Upload updated geometry to GPU buffers
-	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); // Record rendering commands to command buffer
+	void newFrame(uint32_t currentFrame);
+	void setupDockspace(ImGuiID dockspace_id);
+	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);
+	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); 
 
 	// Input event handling for interactive UI elements
 	void handleKey(int key, int scancode, int action, int mods);

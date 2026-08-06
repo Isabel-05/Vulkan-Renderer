@@ -24,13 +24,21 @@ public:
 	VkDeviceMemory colorImageMemory;
 	VkImageView colorImageView;
 
+	//Output
+	std::vector<VkImage> outputImages;
+	std::vector<VkImageView> outputImageViews;
+	std::vector<VkDeviceMemory> outputImageMemories;
+
+	VkSampler outputSampler;
+
 
 	void createSwapchain(VulkanContext& context);
 	void createImageViews(VulkanContext& context);
 	void createDepthResources(VulkanContext& context, CommandPool& cmdPool);
 	void createColorResources(VulkanContext& context, CommandPool& cmdPool);
+	void createOutputResources(VulkanContext& context, uint32_t maxFramesInFlight);
 	void cleanupSwapChain(VulkanContext& context);
-	void recreateSwapChain(VulkanContext& context, CommandPool& cmdPool);
+	void recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, uint32_t maxFramesInFlight);
 
 private:
 

@@ -139,9 +139,18 @@ void Swapchain::cleanupSwapChain(VulkanContext& context)
 	//Images deleted automatically with the swapchain
 	vkDestroySwapchainKHR(context.logicalDevice, handle, nullptr);
 
+	//output resources cleanup
+	for (int i = 0; i < outputImages.size(); i++)
+	{
+		vkDestroyImage(context.logicalDevice, outputImages[i], nullptr);
+		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
+		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
+	}
+
+	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
 }
 
-void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool)
+void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, uint32_t maxFramesInFlight)
 {
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(context.window, &width, &height);
@@ -157,6 +166,7 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool)
 	createImageViews(context);
 	createColorResources(context, cmdPool);
 	createDepthResources(context, cmdPool);
+	createOutputResources(context, maxFramesInFlight);
 	ImGuiIO& io = ImGui::GetIO();
 	io.DisplaySize = ImVec2(static_cast<float>(extent.width),
 		static_cast<float>(extent.height));
@@ -204,4 +214,22 @@ VkExtent2D Swapchain::chooseSwapExtent(VulkanContext& context, const VkSurfaceCa
 
 		return actualExtent;
 	}
+}
+
+void Swapchain::createOutputResources(VulkanContext& context, uint32_t maxFramesInFlight)
+{
+	outputImages.resize(maxFramesInFlight);
+	outputImageViews.resize(maxFramesInFlight);
+	outputImageMemories.resize(maxFramesInFlight);
+
+	//NEEDS TO BE CHANGED TO WINDOW EXTENT NOT SWAPCHAIN EXTENT
+	for (int i = 0; i < maxFramesInFlight; i++)
+	{
+		ImageUtils::createImage(context, extent.width, extent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			outputImages[i], outputImageMemories[i], 1);
+		ImageUtils::createImageView(context, outputImages[i], imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
+
+	}
+	ImageUtils::createImageSampler(context, outputSampler);
 }

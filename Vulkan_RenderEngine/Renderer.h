@@ -13,7 +13,6 @@ class VulkanRenderer
 {
 public:
 
-	
 	VulkanRenderer() = default;
 	~VulkanRenderer() = default;
 
@@ -21,47 +20,34 @@ public:
 	void cleanup();
 
 	void drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
-	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 
 	bool framebufferResized = false;
 
-	ImGuiRenderer* guiRenderer;
 
+	ImGuiRenderer* guiRenderer;
 	VulkanContext context;
 	Swapchain swapChain;
 	Camera camera;
-	FrameData frameData;
-
-
-	//Output
-	std::vector<VkImage> outputImages;
-	std::vector<VkImageView> outputImageViews;
-	std::vector<VkDeviceMemory> outputImageMemories;
-
-	VkSampler outputSampler;
 
 private:
 
-
-
 	GraphicsPipeline graphicsPipeline;
-
 	CommandPool commandPool;
-
-	RenderObject testObject;
-
-	uint32_t currentFrame = 0;
+	FrameData frameData;
 
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+
+	RenderObject testObject;
+
+	uint32_t currentFrame = 0;
+
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-
-	void createOutputResources();
-	void cleanupOutputResources();
+	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 };
 

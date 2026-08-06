@@ -68,6 +68,10 @@ void ImGuiRenderer::init(float width, float height)
 
 	//Style
 	setStyle();
+
+	initResources();
+	createPipeline();
+	initImguiVulkanImpl();
 }
 
 void ImGuiRenderer::cleanup()
@@ -169,12 +173,10 @@ void ImGuiRenderer::initResources()
 	writeSet.dstBinding = 0;                                                   // Binding point in shader
 
 	vkUpdateDescriptorSets(context->logicalDevice, 1, &writeSet, 0, nullptr);                   // Execute the binding update
+}
 
-
-	////////////////////////////////////////////////
-	// Pipeline creation
-
-
+void ImGuiRenderer::createPipeline()
+{
 	// Create pipeline cache
 	VkPipelineCacheCreateInfo pipelineCacheInfo{};
 	pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -338,6 +340,10 @@ void ImGuiRenderer::initResources()
 	vkDestroyShaderModule(context->logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(context->logicalDevice, fragShaderModule, nullptr);
 
+}
+
+void ImGuiRenderer::initImguiVulkanImpl()
+{
 	ImGui_ImplVulkan_InitInfo initInfo = {};
 	initInfo.ApiVersion = VK_API_VERSION_1_3;
 	initInfo.UseDynamicRendering = true;
@@ -549,42 +555,53 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 
 	ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-
-	// Submit dockspace
 	ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
 
-	ImGui::Begin("Vulkan ImGui Demo");
+	setupDockspace(dockspace_id);
+
+	//////////////////////
+	//VIEWPORT (3D SCENE)
+
+	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 	
 	//make sure inputs within the viewport work ie camera
 	viewportPos = ImGui::GetWindowPos();
 	viewportSize = ImGui::GetWindowSize();
 	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
 	ImVec2 topLeft = viewportPos;
-	topLeft.y -= 100; //make sure the tab/window can still be selected
-	topLeft.y += 20;  //make sure the resize thingy can still be selected
-	bottomright.y -= 15;  //make sure the resize thingy can still be selected
-	bottomright.x -= 15;  //make sure the resize thingy can still be selected
+	topLeft.y -= 100;
+	topLeft.y += 20; 
+	bottomright.y -= 15;
+	bottomright.x -= 15;
 	viewportHovered = ImGui::IsMouseHoveringRect(topLeft, bottomright);
 
+	//center image within the available region
 	ImGuiIO& io = ImGui::GetIO();
 	ImVec2 avail = ImGui::GetContentRegionAvail();
 	ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
-	// center within the available region
 	ImVec2 cursor = ImGui::GetCursorPos();
 	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
 	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
 
-	ImGui::BeginChild("ViewportChild", ImVec2(0, 0), false,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
-	ImGui::EndChild();
 
 	ImGui::End();
 
-	// End the frame
-	ImGui::EndFrame();
+	/////////////////
+	//OBJECT HIERARCHY
 
-	// Render to generate draw data
+	ImGui::Begin("Object Hierarchy");
+	ImGui::End();
+
+	/////////////////
+	//OBJECT PROPERTIES
+
+	ImGui::Begin("Object Properties");
+	ImGui::End();	
+
+	////////////////////////////
+
+	ImGui::EndFrame();
 	ImGui::Render();
 
 	ImDrawData* drawData = ImGui::GetDrawData();
@@ -595,6 +612,34 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame)
 		ImGui::UpdatePlatformWindows();
 		ImGui::RenderPlatformWindowsDefault();
 		glfwMakeContextCurrent(backup_current_context);
+	}
+}
+
+void ImGuiRenderer::setupDockspace(ImGuiID dockspace_id)
+{
+	static bool built = false;
+	if (!built)
+	{
+		built = true;
+
+		ImGui::DockBuilderRemoveNode(dockspace_id);
+		ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+		ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+
+		ImGuiID dock_main = dockspace_id;
+
+		// Split left/right first — dock_left gets 30%, dock_main (right) keeps the rest
+		ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, 0.30f, nullptr, &dock_main);
+
+		// Now split the left column top/bottom for the stacked pair
+		ImGuiID dock_left_top, dock_left_bottom;
+		dock_left_top = ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up, 0.5f, nullptr, &dock_left_bottom);
+
+		ImGui::DockBuilderDockWindow("Object Hierarchy", dock_left_top);
+		ImGui::DockBuilderDockWindow("Object Properties", dock_left_bottom);
+		ImGui::DockBuilderDockWindow("Viewport", dock_main);
+
+		ImGui::DockBuilderFinish(dockspace_id);
 	}
 }
 
