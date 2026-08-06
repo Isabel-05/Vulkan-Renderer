@@ -64,6 +64,12 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	if (!app->guiRenderer->isViewportHovered())
 	{
 		app->guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
+
+		// if the mouse leaves the viewport while the mouse is pressed release the camera
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+		{
+			app->camera.mousePressed = false;
+		}
 		return;
 	}
 

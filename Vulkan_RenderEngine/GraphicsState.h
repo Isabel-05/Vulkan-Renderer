@@ -7,7 +7,7 @@ public:
 	GraphicsPipeline() = default;
 	~GraphicsPipeline() = default;
 
-	void create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& descriptorSetLayout);
+	void create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& cameraDS, VkDescriptorSetLayout& materialDS);
 	void cleanup(VulkanContext& context);
 
 	VkPipeline handle;

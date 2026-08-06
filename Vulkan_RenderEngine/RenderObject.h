@@ -30,9 +30,14 @@ struct Material
 	VkImage texture;
 	VkDeviceMemory textureMemory;
 	VkImageView textureImageView;
-	uint32_t mipLevels;
 	VkSampler textureSampler;
-	std::string shaderPath;
+	uint32_t mipLevels;
+
+	//std::string shaderPath;
+
+	std::vector<VkDescriptorSet> descriptorSets;
+
+	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight);
 
 	void cleanup(VulkanContext& context);
 };
@@ -50,7 +55,10 @@ public:
 	Material material;
 
 	glm::mat4 getModelMatrix() const;
-	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath);
+
+	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
+		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout, uint32_t maxFramesInFlight);
+
 	void cleanup(VulkanContext& context);
 };
 

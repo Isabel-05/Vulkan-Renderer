@@ -15,7 +15,7 @@ void FrameData::cleanup(VulkanContext& context, size_t imageCount)
 	vkDestroyDescriptorPool(context.logicalDevice, descriptorPool, nullptr);
 
 
-	vkDestroyDescriptorSetLayout(context.logicalDevice, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(context.logicalDevice, cameraDSLayout, nullptr);
 
 	for (size_t i = 0; i < imageCount; i++) {
 		vkDestroySemaphore(context.logicalDevice, renderFinishedSemaphores[i], nullptr);
@@ -84,7 +84,7 @@ void FrameData::createSyncObjects(VulkanContext& context, size_t imageCount)
 	}
 }
 
-void FrameData::createDescriptorSetLayout(VulkanContext& context)
+void FrameData::createDescriptorSetLayouts(VulkanContext& context)
 {
 	//uniform buffer layout for Model view projection matrices
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
@@ -94,6 +94,16 @@ void FrameData::createDescriptorSetLayout(VulkanContext& context)
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
+	VkDescriptorSetLayoutBinding cameraBinding = uboLayoutBinding;
+	VkDescriptorSetLayoutCreateInfo cameralayoutInfo{};
+	cameralayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	cameralayoutInfo.bindingCount = 1;
+	cameralayoutInfo.pBindings = &cameraBinding;
+
+	if (vkCreateDescriptorSetLayout(context.logicalDevice, &cameralayoutInfo, nullptr, &cameraDSLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout!");
+	}
+
 	//texture sampler descriptor set layout binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
 	samplerLayoutBinding.binding = 1;
@@ -102,13 +112,13 @@ void FrameData::createDescriptorSetLayout(VulkanContext& context)
 	samplerLayoutBinding.pImmutableSamplers = nullptr;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
+	VkDescriptorSetLayoutBinding materialBinding = samplerLayoutBinding;
+	VkDescriptorSetLayoutCreateInfo materiallayoutInfo{};
+	materiallayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	materiallayoutInfo.bindingCount = 1;
+	materiallayoutInfo.pBindings = &materialBinding;
 
-	if (vkCreateDescriptorSetLayout(context.logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(context.logicalDevice, &materiallayoutInfo, nullptr, &materialDSLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 }
@@ -117,9 +127,9 @@ void FrameData::createDescriptorPool(VulkanContext& context)
 {
 	std::array<VkDescriptorPoolSize, 2> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight) * MAX_NUMBER_OF_OBJECTS;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight) * MAX_NUMBER_OF_OBJECTS;
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -133,48 +143,37 @@ void FrameData::createDescriptorPool(VulkanContext& context)
 
 }
 
-void FrameData::createDescriptorSets(VulkanContext& context, VkImageView& textureImageView, VkSampler& textureSampler)
+void FrameData::createDescriptorSets(VulkanContext& context)
 {
-	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, descriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, cameraDSLayout);
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = descriptorPool;
 	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
 	allocInfo.pSetLayouts = layouts.data();
 
-	descriptorSets.resize(maxFramesInFlight);
-	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+	cameraDescriptorSets.resize(maxFramesInFlight);
+	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, cameraDescriptorSets.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 
 	for (size_t i = 0; i < maxFramesInFlight; i++) {
+
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.buffer = uniformBuffers[i];
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureImageView;
-		imageInfo.sampler = textureSampler;
+		VkWriteDescriptorSet descriptorWrites{};
 
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+		descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites.dstSet = cameraDescriptorSets[i];
+		descriptorWrites.dstBinding = 0;
+		descriptorWrites.dstArrayElement = 0;
+		descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites.descriptorCount = 1;
+		descriptorWrites.pBufferInfo = &bufferInfo;
 
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSets[i];
-		descriptorWrites[0].dstBinding = 0;
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptorSets[i];
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-		vkUpdateDescriptorSets(context.logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+		vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
 	}
 }

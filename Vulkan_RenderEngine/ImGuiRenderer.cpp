@@ -603,9 +603,15 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& o
 	//OBJECT PROPERTIES
 
 	ImGui::Begin("Object Properties");
+
 	ImGui::SliderFloat("rotation x", &objHierarchy[selectedObjId].rotation.x, 0.0f, 360.0f);
 	ImGui::SliderFloat("rotation y", &objHierarchy[selectedObjId].rotation.y, 0.0f, 360.0f);
 	ImGui::SliderFloat("rotation z", &objHierarchy[selectedObjId].rotation.z, 0.0f, 360.0f);
+
+	ImGui::SliderFloat("scale x", &objHierarchy[selectedObjId].scale.x, 0.1f, 3.0f);
+	ImGui::SliderFloat("scale y", &objHierarchy[selectedObjId].scale.y, 0.1f, 3.0f);
+	ImGui::SliderFloat("scale z", &objHierarchy[selectedObjId].scale.z, 0.1f, 3.0f);
+
 
 	ImGui::End();	
 

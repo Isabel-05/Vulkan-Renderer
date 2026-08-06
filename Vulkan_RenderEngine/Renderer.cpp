@@ -20,28 +20,17 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		//Base Vulkan setup
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
-		frameData.createDescriptorSetLayout(context);
-		graphicsPipeline.create(context, swapChain.imageFormat, frameData.descriptorSetLayout);
+		frameData.createDescriptorSetLayouts(context);
+		graphicsPipeline.create(context, swapChain.imageFormat, frameData.cameraDSLayout, frameData.materialDSLayout);
 		commandPool.create(context);
 		swapChain.createColorResources(context, commandPool);
 		swapChain.createDepthResources(context, commandPool);
 		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
 
-		RenderObject firstObject;
-		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
-		firstObject.rotation.x = 270.0f;
-		firstObject.name = "numba 1";
-		objectHierarchy.push_back(firstObject);
-		RenderObject secondObject;
-		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
-		secondObject.name = "numba 2";
-		objectHierarchy.push_back(secondObject);
-		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
-
 		//Rendering loop resources
 		frameData.createUniformBuffers(context);
 		frameData.createDescriptorPool(context);
-		frameData.createDescriptorSets(context, firstObject.material.textureImageView, firstObject.material.textureSampler);
+		frameData.createDescriptorSets(context);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
@@ -49,6 +38,17 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
+
+		RenderObject firstObject;
+		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout, frameData.maxFramesInFlight);
+		firstObject.rotation.x = 270.0f;
+		firstObject.name = "numba 1";
+		objectHierarchy.push_back(firstObject);
+		RenderObject secondObject;
+		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout, frameData.maxFramesInFlight);
+		secondObject.name = "numba 2";
+		objectHierarchy.push_back(secondObject);
+		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -260,7 +260,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		vkCmdBindIndexBuffer(commandBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 		//bind descriptor sets (for passing uniform buffer data to shaders)
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.descriptorSets[currentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.cameraDescriptorSets[currentFrame], 0, nullptr);
 
 		//push constants (for passing model matrix to vertex shader)
 		glm::mat4 modelMatrix = obj.getModelMatrix();
