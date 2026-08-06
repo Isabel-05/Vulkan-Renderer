@@ -89,11 +89,20 @@ void mouse_wheel_callback(GLFWwindow* window, double xoffset, double yoffset)
 	}
 }
 
+void setWindowCallbacks(GLFWwindow* window)
+{
+	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	glfwSetCursorPosCallback(window, mouseCallback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetScrollCallback(window, mouse_wheel_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
 int main()
 {
-	GLFWwindow* window = initWindow("Hello Triangle");
-	if (!glfwVulkanSupported())
-	{
+	GLFWwindow* window = initWindow("My first attempt at Vulkan");
+
+	if (!glfwVulkanSupported()) {
 		printf("GLFW: Vulkan Not Supported\n");
 		return 1;
 	}
@@ -101,16 +110,10 @@ int main()
 	VulkanRenderer renderer;
 
 	glfwSetWindowUserPointer(window, &renderer);
-	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-	glfwSetCursorPosCallback(window, mouseCallback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glfwSetScrollCallback(window, mouse_wheel_callback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	setWindowCallbacks(window);
 
-	if (renderer.init(window) == EXIT_FAILURE)
-	{ 
-		return EXIT_FAILURE; 
-	}
+	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; }
+
 
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
@@ -124,15 +127,12 @@ int main()
 
 		renderer.drawFrame(
 			renderer.camera.getViewMatrix(),
-			renderer.camera.getProjectionMatrix(renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 10.0f));
+			renderer.camera.getProjectionMatrix((float)renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 10.0f));
 	}
 
 	vkDeviceWaitIdle(renderer.context.logicalDevice);
 
 	renderer.cleanup();
-
-
 	glfwDestroyWindow(window);
 	glfwTerminate();
-
 }

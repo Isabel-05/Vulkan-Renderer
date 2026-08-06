@@ -24,9 +24,9 @@ void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::strin
 glm::mat4 RenderObject::getModelMatrix() const
 {
 	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
-	modelMatrix = glm::rotate(modelMatrix, rotation.x, glm::vec3(1, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, rotation.y, glm::vec3(0, 1, 0));
-	modelMatrix = glm::rotate(modelMatrix, rotation.z, glm::vec3(0, 0, 1));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
 	modelMatrix = glm::scale(modelMatrix, scale);
 	return modelMatrix;
 }
@@ -96,10 +96,5 @@ namespace ModelUtil
 				indices.push_back(indices.size());
 			}
 		}
-
-		//for (auto& vertex : vertices) {
-		//	vertex.pos = glm::vec4(vertex.pos, 0) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		//	vertex.pos.z -= 1.0f;
-		//}
 	}
 }

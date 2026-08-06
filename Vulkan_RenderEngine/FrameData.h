@@ -17,7 +17,7 @@ public:
 
 	void cleanup(VulkanContext& context, size_t imageCount);
 
-	uint32_t maxFramesInFlight = 2;
+	const uint32_t maxFramesInFlight = 2;
 
 	std::vector<VkCommandBuffer> commandBuffers;
 	std::vector<VkDeviceMemory> commandBuffersMemory;

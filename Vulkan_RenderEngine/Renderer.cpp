@@ -27,12 +27,21 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		swapChain.createDepthResources(context, commandPool);
 		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
 
-		testObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
+		RenderObject firstObject;
+		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
+		firstObject.rotation.x = 270.0f;
+		firstObject.name = "numba 1";
+		objectHierarchy.push_back(firstObject);
+		RenderObject secondObject;
+		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH);
+		secondObject.name = "numba 2";
+		objectHierarchy.push_back(secondObject);
+		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
 
 		//Rendering loop resources
 		frameData.createUniformBuffers(context);
 		frameData.createDescriptorPool(context);
-		frameData.createDescriptorSets(context, testObject.material.textureImageView, testObject.material.textureSampler);
+		frameData.createDescriptorSets(context, firstObject.material.textureImageView, firstObject.material.textureSampler);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
@@ -58,7 +67,9 @@ void VulkanRenderer::cleanup()
 
 	swapChain.cleanupSwapChain(context);
 
-	testObject.cleanup(context);
+	for (RenderObject& obj : objectHierarchy) {
+		obj.cleanup(context);
+	}
 
 	graphicsPipeline.cleanup(context);
 
@@ -96,7 +107,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
-	guiRenderer->newFrame(currentFrame, testObject);
+	guiRenderer->newFrame(currentFrame, objectHierarchy, selectedObjId);
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
@@ -224,12 +235,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//second parameter decides if its a graphics or compute pipeline
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.handle);
 
-	VkBuffer vertexBuffers[] = { testObject.mesh.vertexBuffer };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-	vkCmdBindIndexBuffer(commandBuffer, testObject.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
 	//set our dynamic viewport and scissor
 	VkViewport viewport{};
 	viewport.x = 0.0f;
@@ -246,19 +251,28 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = swapChain.extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	//bind descriptor sets (for passing uniform buffer data to shaders)
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.descriptorSets[currentFrame], 0, nullptr);
+	for (auto& obj : objectHierarchy)
+	{
+		VkBuffer vertexBuffers[] = { obj.mesh.vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-	//push constants (for passing model matrix to vertex shader)
-	glm::mat4 modelMatrix = testObject.getModelMatrix();
-	vkCmdPushConstants(commandBuffer, graphicsPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+		vkCmdBindIndexBuffer(commandBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-	//Draw command
-	//parameter 3: vertex count
-	//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
-	//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
-	//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(testObject.mesh.indices.size()), 1, 0, 0, 0);
+		//bind descriptor sets (for passing uniform buffer data to shaders)
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 1, &frameData.descriptorSets[currentFrame], 0, nullptr);
+
+		//push constants (for passing model matrix to vertex shader)
+		glm::mat4 modelMatrix = obj.getModelMatrix();
+		vkCmdPushConstants(commandBuffer, graphicsPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+
+		//Draw command
+		//parameter 3: vertex count
+		//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
+		//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
+		//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(obj.mesh.indices.size()), 1, 0, 0, 0);
+	}
 
 	vkCmdEndRendering(commandBuffer);
 

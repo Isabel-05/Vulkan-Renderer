@@ -9,7 +9,6 @@
 namespace ModelUtil
 {
 	void loadObjFile(std::string filePath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-	void loadTexture(std::string filePath, std::vector<VkImage>& textures, std::vector<VkDeviceMemory>& textureMemories, std::vector<VkImageView>& textureImageViews);
 }
 
 struct Mesh
@@ -28,21 +27,21 @@ struct Mesh
 
 struct Material
 {
-	void cleanup(VulkanContext& context);
 	VkImage texture;
-	VkDeviceMemory textureMemory;	
+	VkDeviceMemory textureMemory;
 	VkImageView textureImageView;
 	uint32_t mipLevels;
 	VkSampler textureSampler;
 	std::string shaderPath;
+
+	void cleanup(VulkanContext& context);
 };
 
 class RenderObject
 {
 public:
-	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath);
-	void cleanup(VulkanContext& context);
-	glm::mat4 getModelMatrix() const;
+
+	std::string name;
 
 	glm::vec3 position;
 	glm::vec3 rotation;
@@ -50,5 +49,8 @@ public:
 	Mesh mesh;
 	Material material;
 
+	glm::mat4 getModelMatrix() const;
+	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath);
+	void cleanup(VulkanContext& context);
 };
 

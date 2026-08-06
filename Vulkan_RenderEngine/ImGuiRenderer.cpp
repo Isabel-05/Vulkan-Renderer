@@ -43,10 +43,6 @@ ImGuiRenderer::ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight
 	renderingInfo.pColorAttachmentFormats = &colorFormat;
 }
 
-ImGuiRenderer::~ImGuiRenderer()
-{
-}
-
 void ImGuiRenderer::init(float width, float height)
 {
 	// Initialize ImGui context
@@ -550,7 +546,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(uint32_t currentFrame, RenderObject& testObj)
+void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId)
 {
 	ImGui::NewFrame();
 
@@ -566,8 +562,8 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, RenderObject& testObj)
 	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 	
 	//make sure inputs within the viewport work ie camera
-	viewportPos = ImGui::GetWindowPos();
-	viewportSize = ImGui::GetWindowSize();
+	ImVec2 viewportPos = ImGui::GetWindowPos();
+	ImVec2 viewportSize = ImGui::GetWindowSize();
 	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
 	ImVec2 topLeft = viewportPos;
 	topLeft.y -= 100;
@@ -592,23 +588,24 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, RenderObject& testObj)
 	//OBJECT HIERARCHY
 
 	ImGui::Begin("Object Hierarchy");
+
+	for (int i = 0; i < objHierarchy.size(); i++)
+	{
+		bool isSelected = (i == selectedObjId);
+		if (ImGui::Selectable(objHierarchy[i].name.c_str(), isSelected))
+		{
+			selectedObjId = i;
+		}
+	}
 	ImGui::End();
 
-	/////////////////
+	////////////////////
 	//OBJECT PROPERTIES
 
-	static float rotationX = 0;
-	static float rotationY = 0;
-	static float rotationZ = 0;
-
 	ImGui::Begin("Object Properties");
-	ImGui::SliderFloat("rotation x", &rotationX, 0.0f, 360.0f);
-	ImGui::SliderFloat("rotation y", &rotationY, 0.0f, 360.0f);
-	ImGui::SliderFloat("rotation z", &rotationZ, 0.0f, 360.0f);
-
-	testObj.rotation.x = glm::radians(rotationX);
-	testObj.rotation.y = glm::radians(rotationY);
-	testObj.rotation.z = glm::radians(rotationZ);
+	ImGui::SliderFloat("rotation x", &objHierarchy[selectedObjId].rotation.x, 0.0f, 360.0f);
+	ImGui::SliderFloat("rotation y", &objHierarchy[selectedObjId].rotation.y, 0.0f, 360.0f);
+	ImGui::SliderFloat("rotation z", &objHierarchy[selectedObjId].rotation.z, 0.0f, 360.0f);
 
 	ImGui::End();	
 

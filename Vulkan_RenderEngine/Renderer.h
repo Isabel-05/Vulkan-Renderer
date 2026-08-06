@@ -35,7 +35,8 @@ private:
 	CommandPool commandPool;
 	FrameData frameData;
 
-	RenderObject testObject;
+	std::vector<RenderObject> objectHierarchy;
+	uint32_t selectedObjId = 0;
 
 	uint32_t currentFrame = 0;
 
