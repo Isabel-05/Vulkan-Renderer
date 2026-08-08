@@ -1,4 +1,3 @@
-#pragma once
 #include "VulkanContext.h"
 #include <string>
 #include <set>
@@ -72,6 +71,11 @@ void VulkanContext::createInstance()
 	}
 	instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); //extension for debug messages from validation layers
 
+	#ifdef __APPLE__
+    instanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	#endif
+
 	//Check if instance extensions are supported
 	if (!checkInstanceExtensionSupport(&instanceExtensions))
 	{
@@ -135,8 +139,9 @@ void VulkanContext::createLogicalDevice()
 	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
 	if (enableValidationLayers) {
-		deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-		deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+		//deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		deviceCreateInfo.enabledLayerCount = 0;
+		//deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
 	}
 	else {
 		deviceCreateInfo.enabledLayerCount = 0;
@@ -210,7 +215,7 @@ bool VulkanContext::checkInstanceExtensionSupport(std::vector<const char*>* exte
 		bool hasExtension = false;
 		for (const auto& extension : extensions)
 		{
-			if (strcmp(extensionToCheck, extension.extensionName))
+			if (strcmp(extensionToCheck, extension.extensionName) == 0)
 			{
 				hasExtension = true;
 				break;

@@ -1,4 +1,3 @@
-#pragma once
 #include "GraphicsState.h"
 #include "BufferUtils.h"
 #include "Vertex.h"

@@ -46,7 +46,10 @@ public:
 
 	const std::vector<const char*> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+		VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+		#ifdef __APPLE__
+   			"VK_KHR_portability_subset"
+		#endif
 	};
 
 	const std::vector<const char*> validationLayers = {

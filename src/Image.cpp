@@ -1,4 +1,3 @@
-#pragma once
 #include "VulkanContext.h"
 #include "RenderObject.h"
 #include "Image.h"

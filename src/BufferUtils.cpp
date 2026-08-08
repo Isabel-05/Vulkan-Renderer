@@ -1,4 +1,3 @@
-#pragma once
 #include "BufferUtils.h"
 
 #include <iostream>

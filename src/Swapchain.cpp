@@ -1,4 +1,3 @@
-#pragma once
 #include "Swapchain.h"
 #include <glm/glm.hpp>
 

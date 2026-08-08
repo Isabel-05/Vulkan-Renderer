@@ -1,4 +1,3 @@
-#pragma once
 #include "Renderer.h"
 #include "ImGuiRenderer.h"
 #include <chrono>
@@ -139,9 +138,15 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	if (vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, frameData.inFlightFences[currentFrame]) != VK_SUCCESS) {
-		throw std::runtime_error("failed to submit draw command buffer!");
-	}
+	// if (vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, frameData.inFlightFences[currentFrame]) != VK_SUCCESS) {
+	// 	throw std::runtime_error("failed to submit draw command buffer!");
+	// }
+
+	VkResult submitResult = vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, frameData.inFlightFences[currentFrame]);
+if (submitResult != VK_SUCCESS) {
+    std::cerr << "vkQueueSubmit failed with VkResult: " << submitResult << std::endl;
+    throw std::runtime_error("failed to submit draw command buffer!");
+}
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
