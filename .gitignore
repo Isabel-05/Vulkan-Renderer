@@ -86,7 +86,8 @@ StyleCopReport.xml
 *_h.h
 *.ilk
 *.meta
-*.obj
+build/*.obj
+x64/*.obj
 *.iobj
 *.pch
 *.pdb
