@@ -7,8 +7,8 @@
 #include <fstream>
 void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& cameraDS, VkDescriptorSetLayout& materialDS)
 {
-	auto vertShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/vert.spv");
-	auto fragShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/frag.spv");
+	auto vertShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "vert.spv");
+	auto fragShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "frag.spv");
 
 	VkShaderModule vertShaderModule = BufferUtils::createShaderModule(context, vertShaderCode);
 	VkShaderModule fragShaderModule = BufferUtils::createShaderModule(context, fragShaderCode);

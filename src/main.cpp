@@ -133,7 +133,7 @@ int main()
 
 		renderer.drawFrame(
 			renderer.camera.getViewMatrix(),
-			renderer.camera.getProjectionMatrix((float)renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 10.0f));
+			renderer.camera.getProjectionMatrix((float)renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 20.0f));
 	}
 
 	vkDeviceWaitIdle(renderer.context.logicalDevice);

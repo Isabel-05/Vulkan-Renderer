@@ -1,7 +1,7 @@
 #pragma once
 #include "RenderObject.h"
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tinyobjloader/tiny_obj_loader.h>
+#include <tiny_obj_loader.h>
 
 #include "BufferUtils.h"
 #include "Image.h"
@@ -105,7 +105,7 @@ namespace ModelUtil
 		std::string err;
 		std::string warn;
 
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str())) {
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filePath.c_str())) {
 			throw std::runtime_error(err);
 		}
 

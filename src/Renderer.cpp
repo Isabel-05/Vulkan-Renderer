@@ -7,8 +7,10 @@
 //const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/Wolf_student_girl.obj";
 //const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/WolfGirl_Base.png";
 
-const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/viking_room.obj";
-const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/viking_room.png";
+const std::string MODEL_PATH = std::string(ASSET_DIR) + "models/viking_room.obj";
+const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.png";
+const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
+const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
@@ -45,7 +47,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		firstObject.name = "numba 1";
 		objectHierarchy.push_back(firstObject);
 		RenderObject secondObject;
-		secondObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
+		secondObject.init(context, commandPool, MODEL_PATH2, TEXTURE_PATH2, frameData.descriptorPool, frameData.materialDSLayout);
 		secondObject.name = "numba 2";
 		objectHierarchy.push_back(secondObject);
 		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);

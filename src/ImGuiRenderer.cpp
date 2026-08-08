@@ -195,8 +195,8 @@ void ImGuiRenderer::createPipeline()
 
 	vkCreatePipelineLayout(context->logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
 
-	auto vertShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_vert.spv");
-	auto fragShaderCode = BufferUtils::readFile("C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/shaders/imgui_frag.spv");
+	auto vertShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "imgui_vert.spv");
+	auto fragShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "imgui_frag.spv");
 
 	VkShaderModule vertShaderModule = BufferUtils::createShaderModule((*context), vertShaderCode);
 	VkShaderModule fragShaderModule = BufferUtils::createShaderModule((*context), fragShaderCode);
