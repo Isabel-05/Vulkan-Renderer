@@ -70,10 +70,16 @@ file(GLOB HEADERS ${CMAKE_SOURCE_DIR}/src/*.h)
 
 add_executable(VulkanRenderer ${SOURCES} ${HEADERS})
 
+add_library(tinyfiledialogs STATIC
+    ${CMAKE_SOURCE_DIR}/external/tinyfiledialogs/tinyfiledialogs.h
+    ${CMAKE_SOURCE_DIR}/external/tinyfiledialogs/tinyfiledialogs.c
+)
+
 target_include_directories(VulkanRenderer PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/stb_image
     ${CMAKE_SOURCE_DIR}/external/tinyobjloader
+    ${CMAKE_SOURCE_DIR}/external/tinyfiledialogs
 )
 
 target_link_libraries(VulkanRenderer PRIVATE
@@ -81,6 +87,7 @@ target_link_libraries(VulkanRenderer PRIVATE
     glfw
     glm::glm
     imgui
+    tinyfiledialogs
 )
 
 # Bakes the asset/shader-output directories into the binary at compile

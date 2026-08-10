@@ -11,6 +11,9 @@ const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.
 const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
 const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
 
+const std::string baseObjectModelPath = std::string(ASSET_DIR) + "models/BlenderCube.obj";
+const std::string baseObjectTexturePath = std::string(ASSET_DIR) + "textures/WhiteTexture.png";
+
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
 	try {
@@ -40,16 +43,19 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 
-		RenderObject firstObject;
-		firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
-		firstObject.rotation.x = 270.0f;
-		firstObject.name = "numba 1";
-		objectHierarchy.push_back(firstObject);
-		RenderObject secondObject;
-		secondObject.init(context, commandPool, MODEL_PATH2, TEXTURE_PATH2, frameData.descriptorPool, frameData.materialDSLayout);
-		secondObject.name = "numba 2";
-		objectHierarchy.push_back(secondObject);
-		objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
+		guiRenderer->baseObject.init(context, commandPool, baseObjectModelPath, baseObjectTexturePath, frameData.descriptorPool, frameData.materialDSLayout);
+		guiRenderer->baseObject.name = "Empty Object";
+
+		//RenderObject firstObject;
+		//firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
+		//firstObject.rotation.x = 270.0f;
+		//firstObject.name = "numba 1";
+		//objectHierarchy.push_back(firstObject);
+		//RenderObject secondObject;
+		//secondObject.init(context, commandPool, MODEL_PATH2, TEXTURE_PATH2, frameData.descriptorPool, frameData.materialDSLayout);
+		//secondObject.name = "numba 2";
+		//objectHierarchy.push_back(secondObject);
+		//objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -108,7 +114,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
-	guiRenderer->newFrame(currentFrame, objectHierarchy, selectedObjId);
+	guiRenderer->newFrame(commandPool, currentFrame, objectHierarchy, selectedObjId, frameData.descriptorPool, frameData.materialDSLayout);
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
@@ -260,6 +266,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	for (auto& obj : objectHierarchy)
 	{
+		if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
 		VkBuffer vertexBuffers[] = { obj.mesh.vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include "imgui_internal.h"
+#include <tinyfiledialogs.h>
 
 
 ImGuiRenderer::ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight) :
@@ -69,6 +70,7 @@ void ImGuiRenderer::init(float width, float height)
 	initResources();
 	createPipeline();
 	initImguiVulkanImpl();
+
 }
 
 void ImGuiRenderer::cleanup()
@@ -546,7 +548,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ImGui::NewFrame();
 
@@ -589,6 +591,12 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& o
 
 	ImGui::Begin("Object Hierarchy");
 
+	if (ImGui::Button("Add Object"))
+	{
+		objHierarchy.push_back(baseObject);
+		selectedObjId = objHierarchy.size() - 1; // Select the newly added object
+	}
+
 	for (int i = 0; i < objHierarchy.size(); i++)
 	{
 		bool isSelected = (i == selectedObjId);
@@ -604,14 +612,73 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& o
 
 	ImGui::Begin("Object Properties");
 
-	ImGui::SliderFloat("rotation x", &objHierarchy[selectedObjId].rotation.x, 0.0f, 360.0f);
-	ImGui::SliderFloat("rotation y", &objHierarchy[selectedObjId].rotation.y, 0.0f, 360.0f);
-	ImGui::SliderFloat("rotation z", &objHierarchy[selectedObjId].rotation.z, 0.0f, 360.0f);
+	if (objHierarchy.size() == 0)
+	{
+		ImGui::End();
+		ImGui::EndFrame();
+		ImGui::Render();
+		return;
+	}
 
-	ImGui::SliderFloat("scale x", &objHierarchy[selectedObjId].scale.x, 0.1f, 3.0f);
-	ImGui::SliderFloat("scale y", &objHierarchy[selectedObjId].scale.y, 0.1f, 3.0f);
-	ImGui::SliderFloat("scale z", &objHierarchy[selectedObjId].scale.z, 0.1f, 3.0f);
+	ImGui::DragFloat3("position x", &objHierarchy[selectedObjId].position.x, 0.01f, -3.0f, 3.0f);
+	//ImGui::DragFloat3("position y", &objHierarchy[selectedObjId].position.y, -3.0f, 3.0f);
+	//ImGui::DragFloat3("position z", &objHierarchy[selectedObjId].position.z, -3.0f, 3.0f);
 
+	ImGui::DragFloat3("rotation x", &objHierarchy[selectedObjId].rotation.x, 1.0f, 0.0f, 360.0f);
+	//ImGui::DragFloat3("rotation y", &objHierarchy[selectedObjId].rotation.y, 0.0f, 360.0f);
+	//ImGui::DragFloat3("rotation z", &objHierarchy[selectedObjId].rotation.z, 0.0f, 360.0f);
+
+	ImGui::DragFloat3("scale x", &objHierarchy[selectedObjId].scale.x, 0.005f, 0.1f, 3.0f);
+	//ImGui::DragFloat3("scale y", &objHierarchy[selectedObjId].scale.y, 0.1f, 3.0f);
+	//ImGui::DragFloat3("scale z", &objHierarchy[selectedObjId].scale.z, 0.1f, 3.0f);
+
+	if (ImGui::Button("Change Mesh Component"))
+	{
+		const char* filters[1] = { "*.obj" };
+
+		const char* filePath = tinyfd_openFileDialog(
+			"Select Mesh File", // Dialog title
+			"",                  // Default path or filename
+			1,                   // Number of filter patterns
+			filters,             // Filter patterns array
+			"Mesh Files",       // Single filter description
+			0                    // Allow multiple select (0 = No, 1 = Yes)
+		);
+
+
+		//vkDeviceWaitIdle(context->logicalDevice);
+		//objHierarchy[selectedObjId].mesh.cleanup((*context));
+		//objHierarchy[selectedObjId].mesh.vertices.clear();
+		//objHierarchy[selectedObjId].mesh.indices.clear();
+		ModelUtil::loadObjFile(filePath, objHierarchy[selectedObjId].mesh.vertices, objHierarchy[selectedObjId].mesh.indices);
+		objHierarchy[selectedObjId].mesh.upload((*context), cmdPool);
+	}
+
+	if (ImGui::Button("Change Texture Component"))
+	{
+		const char* filters[1] = { "*.png" };
+
+		const char* filePath = tinyfd_openFileDialog(
+			"Select Texture File", // Dialog title
+			"",                  // Default path or filename
+			1,                   // Number of filter patterns
+			filters,             // Filter patterns array
+			"Texture Files",       // Single filter description
+			0                    // Allow multiple select (0 = No, 1 = Yes)
+		);
+
+		vkDeviceWaitIdle(context->logicalDevice);
+
+		ImageUtils::createTextureImage((*context), cmdPool, filePath, objHierarchy[selectedObjId].material.texture,
+			objHierarchy[selectedObjId].material.textureMemory, objHierarchy[selectedObjId].material.mipLevels);
+
+		ImageUtils::createImageView((*context), objHierarchy[selectedObjId].material.texture,
+			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, objHierarchy[selectedObjId].material.textureImageView, objHierarchy[selectedObjId].material.mipLevels);
+
+		objHierarchy[selectedObjId].material.updateDescriptorSets((*context), pool, descriptorSetLayout);
+	}
+
+	//ImGui::ShowDemoWindow();
 
 	ImGui::End();	
 
@@ -620,8 +687,8 @@ void ImGuiRenderer::newFrame(uint32_t currentFrame, std::vector<RenderObject>& o
 	ImGui::EndFrame();
 	ImGui::Render();
 
-	ImDrawData* drawData = ImGui::GetDrawData();
-	drawData->CmdListsCount = drawData->CmdLists.Size;
+	//ImDrawData* drawData = ImGui::GetDrawData();
+	//drawData->CmdListsCount = drawData->CmdLists.Size;
 
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		GLFWwindow* backup_current_context = glfwGetCurrentContext();
@@ -832,7 +899,8 @@ void ImGuiRenderer::handleKey(int key, int scancode, int action, int mods)
 	// Modern ImGui (v1.87+) uses AddKeyEvent to queue input events.
 	// This handles key states, modifiers, and repeat logic internally.
 	// Most backends can cast native key codes directly to ImGuiKey.
-	io.AddKeyEvent((ImGuiKey)key, pressed);
+	ImGuiKey imguiKey = (ImGuiKey)key; // Assuming key is compatible with ImGuiKey enum
+	io.AddKeyEvent(imguiKey, pressed);
 }
 
 void ImGuiRenderer::handleMousePos(float x, float y)

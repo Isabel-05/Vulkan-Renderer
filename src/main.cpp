@@ -80,6 +80,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 		app->camera.mousePressed = false; // Clear flag when left mouse button is released
 	}
+
+	//if mouse leaves window while ui is being pressed set to released
+	app->guiRenderer->handleMouseButton(button, action);
 }
 
 void mouse_wheel_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -94,12 +97,26 @@ void mouse_wheel_callback(GLFWwindow* window, double xoffset, double yoffset)
 	}
 }
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
+	// Pass key events to ImGui for UI interaction
+	app->guiRenderer->handleKey(key, scancode, action, mods);
+	// If ImGui wants to capture keyboard input, do not process further
+	if (app->guiRenderer->getWantKeyCapture())
+	{
+		return;
+	}
+}
+
+
 void setWindowCallbacks(GLFWwindow* window)
 {
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 	glfwSetCursorPosCallback(window, mouseCallback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetScrollCallback(window, mouse_wheel_callback);
+	glfwSetKeyCallback(window, key_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 

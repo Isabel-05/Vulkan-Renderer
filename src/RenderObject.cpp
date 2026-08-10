@@ -84,6 +84,26 @@ void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& po
 
 }
 
+void Material::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = textureImageView;
+	imageInfo.sampler = textureSampler;
+
+	VkWriteDescriptorSet descriptorWrites{};
+
+	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites.dstSet = descriptorSet;
+	descriptorWrites.dstBinding = 1;
+	descriptorWrites.dstArrayElement = 0;
+	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites.descriptorCount = 1;
+	descriptorWrites.pImageInfo = &imageInfo;
+	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
+
+}
+
 void Material::cleanup(VulkanContext& context)
 {
 	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);

@@ -38,7 +38,7 @@ public:
 	void reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
-	void newFrame(uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId);
+	void newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);
 	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); 
 
@@ -50,6 +50,8 @@ public:
 	void charPressed(uint32_t key);
 
 	bool isViewportHovered() { return viewportHovered; }
+
+	RenderObject baseObject;
 
 private:
 

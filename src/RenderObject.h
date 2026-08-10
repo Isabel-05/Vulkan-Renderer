@@ -38,6 +38,7 @@ struct Material
 	VkDescriptorSet descriptorSet;
 
 	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+	void updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	void cleanup(VulkanContext& context);
 };
