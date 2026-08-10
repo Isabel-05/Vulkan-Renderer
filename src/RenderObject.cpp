@@ -108,7 +108,6 @@ void Material::cleanup(VulkanContext& context)
 {
 	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
 	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
-
 	vkDestroyImage(context.logicalDevice, texture, nullptr);
 	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
 }

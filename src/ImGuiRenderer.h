@@ -61,6 +61,7 @@ private:
 	void initImguiVulkanImpl();
 	void initTexture();
 	void setStyle();
+	void finishFrame();
 
 	//frame-by-frame update stuff
 	void setupDockspace(ImGuiID dockspace_id);

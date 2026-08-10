@@ -105,6 +105,8 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
+	guiRenderer->newFrame(commandPool, currentFrame, objectHierarchy, selectedObjId, frameData.descriptorPool, frameData.materialDSLayout);
+
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
 	vkResetFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame]);
@@ -114,7 +116,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
 	//ImGui rendering Start
-	guiRenderer->newFrame(commandPool, currentFrame, objectHierarchy, selectedObjId, frameData.descriptorPool, frameData.materialDSLayout);
+
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);

@@ -628,9 +628,7 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 
 	if (objHierarchy.size() == 0)
 	{
-		ImGui::End();
-		ImGui::EndFrame();
-		ImGui::Render();
+		finishFrame();
 		return;
 	}
 
@@ -659,6 +657,10 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 			0                    // Allow multiple select (0 = No, 1 = Yes)
 		);
 
+		if (!filePath || filePath[0] == '\0') {
+			finishFrame();
+			return;
+		}
 
 		//vkDeviceWaitIdle(context->logicalDevice);
 		//objHierarchy[selectedObjId].mesh.cleanup((*context));
@@ -681,7 +683,16 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 			0                    // Allow multiple select (0 = No, 1 = Yes)
 		);
 
+		if (!filePath || filePath[0] == '\0') {
+			finishFrame();
+			return;
+		}
+
 		vkDeviceWaitIdle(context->logicalDevice);
+
+		vkDestroyImageView(context->logicalDevice, objHierarchy[selectedObjId].material.textureImageView, nullptr);
+		vkDestroyImage(context->logicalDevice, objHierarchy[selectedObjId].material.texture, nullptr);
+		vkFreeMemory(context->logicalDevice, objHierarchy[selectedObjId].material.textureMemory, nullptr);
 
 		ImageUtils::createTextureImage((*context), cmdPool, filePath, objHierarchy[selectedObjId].material.texture,
 			objHierarchy[selectedObjId].material.textureMemory, objHierarchy[selectedObjId].material.mipLevels);
@@ -691,15 +702,8 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 
 		objHierarchy[selectedObjId].material.updateDescriptorSets((*context), pool, descriptorSetLayout);
 	}
-
-	//ImGui::ShowDemoWindow();
-
-	ImGui::End();	
-
-	////////////////////////////
-
-	ImGui::EndFrame();
-	ImGui::Render();
+	
+	finishFrame();
 
 	//ImDrawData* drawData = ImGui::GetDrawData();
 	//drawData->CmdListsCount = drawData->CmdLists.Size;
@@ -941,3 +945,11 @@ void ImGuiRenderer::charPressed(uint32_t key)
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddInputCharacter(key);
 }
+
+void ImGuiRenderer::finishFrame()
+{
+	ImGui::End();
+	ImGui::EndFrame();
+	ImGui::Render();
+}
+
