@@ -63,7 +63,6 @@ void ImGuiRenderer::init(float width, float height)
 	// Set display size
 	io.DisplaySize = ImVec2(width, height);
 	io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
-	updateDisplaySize(context->window);
 
 	//Style
 	setStyle();
@@ -487,19 +486,6 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 	}
 }
 
-void ImGuiRenderer::updateDisplaySize(GLFWwindow* window)
-{
-	int winW, winH, fbW, fbH;
-    glfwGetWindowSize(window, &winW, &winH);
-    glfwGetFramebufferSize(window, &fbW, &fbH);
-
-    ImGuiIO& io = ImGui::GetIO();
-    //io.DisplaySize = ImVec2((float)winW, (float)winH); // points, matches cursor coords
-    io.DisplayFramebufferScale = ImVec2(
-        winW > 0 ? (float) (fbW / winW) : 1.0f,
-        winH > 0 ? (float) (fbH / winH) : 1.0f);
-}
-
 void ImGuiRenderer::loadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews)
 {
 	viewportDescriptorSets.resize(outputImageViews.size());
@@ -624,25 +610,36 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 	////////////////////
 	//OBJECT PROPERTIES
 
+	createPropertiesPanel(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+
+	
+	finishFrame();
+
+	//ImDrawData* drawData = ImGui::GetDrawData();
+	//drawData->CmdListsCount = drawData->CmdLists.Size;
+
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		GLFWwindow* backup_current_context = glfwGetCurrentContext();
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+		glfwMakeContextCurrent(backup_current_context);
+	}
+}
+
+void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
+	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
 	ImGui::Begin("Object Properties");
 
 	if (objHierarchy.size() == 0)
 	{
-		finishFrame();
 		return;
 	}
 
 	ImGui::DragFloat3("position x", &objHierarchy[selectedObjId].position.x, 0.01f, -3.0f, 3.0f);
-	//ImGui::DragFloat3("position y", &objHierarchy[selectedObjId].position.y, -3.0f, 3.0f);
-	//ImGui::DragFloat3("position z", &objHierarchy[selectedObjId].position.z, -3.0f, 3.0f);
-
 	ImGui::DragFloat3("rotation x", &objHierarchy[selectedObjId].rotation.x, 1.0f, 0.0f, 360.0f);
-	//ImGui::DragFloat3("rotation y", &objHierarchy[selectedObjId].rotation.y, 0.0f, 360.0f);
-	//ImGui::DragFloat3("rotation z", &objHierarchy[selectedObjId].rotation.z, 0.0f, 360.0f);
-
 	ImGui::DragFloat3("scale x", &objHierarchy[selectedObjId].scale.x, 0.005f, 0.1f, 3.0f);
-	//ImGui::DragFloat3("scale y", &objHierarchy[selectedObjId].scale.y, 0.1f, 3.0f);
-	//ImGui::DragFloat3("scale z", &objHierarchy[selectedObjId].scale.z, 0.1f, 3.0f);
+
 
 	if (ImGui::Button("Change Mesh Component"))
 	{
@@ -658,14 +655,15 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 		);
 
 		if (!filePath || filePath[0] == '\0') {
-			finishFrame();
 			return;
 		}
 
-		//vkDeviceWaitIdle(context->logicalDevice);
-		//objHierarchy[selectedObjId].mesh.cleanup((*context));
-		//objHierarchy[selectedObjId].mesh.vertices.clear();
-		//objHierarchy[selectedObjId].mesh.indices.clear();
+		vkDeviceWaitIdle(context->logicalDevice);
+
+		objHierarchy[selectedObjId].mesh.cleanup((*context));
+		objHierarchy[selectedObjId].mesh.vertices.clear();
+		objHierarchy[selectedObjId].mesh.indices.clear();
+
 		ModelUtil::loadObjFile(filePath, objHierarchy[selectedObjId].mesh.vertices, objHierarchy[selectedObjId].mesh.indices);
 		objHierarchy[selectedObjId].mesh.upload((*context), cmdPool);
 	}
@@ -684,7 +682,6 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 		);
 
 		if (!filePath || filePath[0] == '\0') {
-			finishFrame();
 			return;
 		}
 
@@ -701,18 +698,6 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, objHierarchy[selectedObjId].material.textureImageView, objHierarchy[selectedObjId].material.mipLevels);
 
 		objHierarchy[selectedObjId].material.updateDescriptorSets((*context), pool, descriptorSetLayout);
-	}
-	
-	finishFrame();
-
-	//ImDrawData* drawData = ImGui::GetDrawData();
-	//drawData->CmdListsCount = drawData->CmdLists.Size;
-
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		GLFWwindow* backup_current_context = glfwGetCurrentContext();
-		ImGui::UpdatePlatformWindows();
-		ImGui::RenderPlatformWindowsDefault();
-		glfwMakeContextCurrent(backup_current_context);
 	}
 }
 

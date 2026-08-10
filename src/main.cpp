@@ -9,11 +9,13 @@ const int WIDTH = 1800;
 const int HEIGHT = 1200;
 
 
-#ifdef __APPLE__
-	const float INPUT_SCALE = 2.0f;
-#else
-	const float INPUT_SCALE = 1.0f;
-#endif
+//#ifdef __APPLE__
+//	float INPUT_SCALE = 2.0f;
+//#else
+//	float INPUT_SCALE = 1.0f;
+//#endif
+
+float INPUT_SCALE = 1.0f;
 
 GLFWwindow* initWindow(std::string wName = "Test Window", const int width = WIDTH, const int height = HEIGHT)
 {
@@ -142,6 +144,11 @@ int main()
 	setWindowCallbacks(window);
 
 	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; }
+
+	int winW, fbW;
+	glfwGetWindowSize(window, &winW, nullptr);
+	glfwGetFramebufferSize(window, &fbW, nullptr);
+	INPUT_SCALE = abs((float)fbW / winW);
 
 
 	//event loop until user closes window
