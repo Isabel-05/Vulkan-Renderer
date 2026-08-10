@@ -51,8 +51,6 @@ public:
 
 	bool isViewportHovered() { return viewportHovered; }
 
-	RenderObject baseObject;
-
 private:
 
 	//init stuff
@@ -60,7 +58,6 @@ private:
 	void initImguiVulkanImpl();
 	void initTexture();
 	void setStyle();
-	void finishFrame();
 
 	//frame-by-frame update stuff
 	void setupDockspace(ImGuiID dockspace_id);
@@ -68,6 +65,9 @@ private:
 
 	//UI Window Creation
 	void createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
+		uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+
+	void createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
 		uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	std::vector<VkDescriptorSet> viewportDescriptorSets;

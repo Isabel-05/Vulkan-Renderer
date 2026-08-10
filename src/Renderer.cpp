@@ -11,9 +11,6 @@ const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.
 const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
 const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
 
-const std::string baseObjectModelPath = std::string(ASSET_DIR) + "models/BlenderCube.obj";
-const std::string baseObjectTexturePath = std::string(ASSET_DIR) + "textures/WhiteTexture.png";
-
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
 	try {
@@ -42,9 +39,6 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
-
-		guiRenderer->baseObject.init(context, commandPool, baseObjectModelPath, baseObjectTexturePath, frameData.descriptorPool, frameData.materialDSLayout);
-		guiRenderer->baseObject.name = "Empty Object";
 
 		//RenderObject firstObject;
 		//firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);

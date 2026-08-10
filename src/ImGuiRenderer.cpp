@@ -9,6 +9,9 @@
 #include "imgui_internal.h"
 #include <tinyfiledialogs.h>
 
+const std::string baseObjectModelPath = std::string(ASSET_DIR) + "models/BlenderCube.obj";
+const std::string baseObjectTexturePath = std::string(ASSET_DIR) + "textures/WhiteTexture.png";
+
 
 ImGuiRenderer::ImGuiRenderer(VulkanContext& vContext, uint32_t maxFramesInFlight) :
 	context(&vContext), graphicsQueueFamily(vContext.getQueueFamilyIndices(vContext.physicalDevice).graphicsFamily)
@@ -94,10 +97,6 @@ void ImGuiRenderer::cleanup()
 	for (size_t i = 0; i < indexBuffers.size(); i++) {
 		vkDestroyBuffer(context->logicalDevice, indexBuffers[i], nullptr);
 		vkFreeMemory(context->logicalDevice, indexBufferMemories[i], nullptr);
-	}
-	for (int i = 0; i < viewportDescriptorSets.size(); i++)
-	{
-		
 	}
 }
 
@@ -548,7 +547,8 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
+	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ImGui::NewFrame();
 
@@ -586,15 +586,35 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 
 	ImGui::End();
 
-	/////////////////
-	//OBJECT HIERARCHY
 
+	createObjectHierarchy(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+
+	createPropertiesPanel(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+
+	
+	ImGui::EndFrame();
+	ImGui::Render();
+
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		GLFWwindow* backup_current_context = glfwGetCurrentContext();
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+		glfwMakeContextCurrent(backup_current_context);
+	}
+}
+
+void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
+	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
 	ImGui::Begin("Object Hierarchy");
 
 	if (ImGui::Button("Add Object"))
 	{
-		objHierarchy.push_back(baseObject);
+		RenderObject newObj;
+		newObj.init((*context), cmdPool, baseObjectModelPath, baseObjectTexturePath, pool, descriptorSetLayout);
+		objHierarchy.push_back(newObj);
 		selectedObjId = objHierarchy.size() - 1; // Select the newly added object
+		objHierarchy[selectedObjId].name = "Object " + std::to_string(selectedObjId + 1);
 	}
 
 	for (int i = 0; i < objHierarchy.size(); i++)
@@ -605,25 +625,34 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 			selectedObjId = i;
 		}
 	}
-	ImGui::End();
 
-	////////////////////
-	//OBJECT PROPERTIES
+	const char* label = "remove Object";
+	ImGuiStyle& style = ImGui::GetStyle();
 
-	createPropertiesPanel(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+	// 2. Calculate button size (or pass a fixed size like ImVec2(100, 30))
+	ImVec2 labelSize = ImGui::CalcTextSize(label);
+	ImVec2 buttonSize = ImVec2(
+		labelSize.x + style.FramePadding.x * 2.0f,
+		labelSize.y + style.FramePadding.y * 2.0f
+	);
 
-	
-	finishFrame();
+	ImVec2 windowSize = ImGui::GetWindowSize();
 
-	//ImDrawData* drawData = ImGui::GetDrawData();
-	//drawData->CmdListsCount = drawData->CmdLists.Size;
+	// 4. Position cursor relative to top-left of the window
+	ImGui::SetCursorPos(ImVec2(
+		windowSize.x - buttonSize.x - style.WindowPadding.x,
+		windowSize.y - buttonSize.y - style.WindowPadding.y
+	));
 
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		GLFWwindow* backup_current_context = glfwGetCurrentContext();
-		ImGui::UpdatePlatformWindows();
-		ImGui::RenderPlatformWindowsDefault();
-		glfwMakeContextCurrent(backup_current_context);
+	if (ImGui::Button("remove Object") && objHierarchy.size() > 0)
+	{
+		vkDeviceWaitIdle(context->logicalDevice);
+		objHierarchy[selectedObjId].cleanup((*context));
+		objHierarchy.erase(objHierarchy.begin() + selectedObjId);
+		selectedObjId = objHierarchy.size() - 1;
 	}
+
+	ImGui::End();
 }
 
 void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
@@ -633,6 +662,7 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 
 	if (objHierarchy.size() == 0)
 	{
+		ImGui::End();
 		return;
 	}
 
@@ -655,6 +685,7 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 		);
 
 		if (!filePath || filePath[0] == '\0') {
+			ImGui::End();
 			return;
 		}
 
@@ -682,6 +713,7 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 		);
 
 		if (!filePath || filePath[0] == '\0') {
+			ImGui::End();
 			return;
 		}
 
@@ -699,6 +731,7 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 
 		objHierarchy[selectedObjId].material.updateDescriptorSets((*context), pool, descriptorSetLayout);
 	}
+	ImGui::End();
 }
 
 void ImGuiRenderer::setupDockspace(ImGuiID dockspace_id)
@@ -929,12 +962,5 @@ void ImGuiRenderer::charPressed(uint32_t key)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddInputCharacter(key);
-}
-
-void ImGuiRenderer::finishFrame()
-{
-	ImGui::End();
-	ImGui::EndFrame();
-	ImGui::Render();
 }
 
