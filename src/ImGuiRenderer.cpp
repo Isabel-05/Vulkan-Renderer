@@ -62,6 +62,7 @@ void ImGuiRenderer::init(float width, float height)
 	// Set display size
 	io.DisplaySize = ImVec2(width, height);
 	io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+	updateDisplaySize(context->window);
 
 	//Style
 	setStyle();
@@ -484,6 +485,19 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 	}
 }
 
+void ImGuiRenderer::updateDisplaySize(GLFWwindow* window)
+{
+	int winW, winH, fbW, fbH;
+    glfwGetWindowSize(window, &winW, &winH);
+    glfwGetFramebufferSize(window, &fbW, &fbH);
+
+    ImGuiIO& io = ImGui::GetIO();
+    //io.DisplaySize = ImVec2((float)winW, (float)winH); // points, matches cursor coords
+    io.DisplayFramebufferScale = ImVec2(
+        winW > 0 ? (float) (fbW / winW) : 1.0f,
+        winH > 0 ? (float) (fbH / winH) : 1.0f);
+}
+
 void ImGuiRenderer::loadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews)
 {
 	viewportDescriptorSets.resize(outputImageViews.size());
@@ -644,7 +658,7 @@ void ImGuiRenderer::setupDockspace(ImGuiID dockspace_id)
 
 		ImGuiID dock_main = dockspace_id;
 
-		// Split left/right first — dock_left gets 30%, dock_main (right) keeps the rest
+		// Split left/right first ï¿½ dock_left gets 30%, dock_main (right) keeps the rest
 		ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, 0.30f, nullptr, &dock_main);
 
 		// Now split the left column top/bottom for the stacked pair

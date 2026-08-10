@@ -8,6 +8,13 @@ static ImGui_ImplVulkanH_Window g_MainWindowData;
 const int WIDTH = 1800;
 const int HEIGHT = 1200;
 
+
+#ifdef __APPLE__
+	const float INPUT_SCALE = 2.0f;
+#else
+	const float INPUT_SCALE = 1.0f;
+#endif
+
 GLFWwindow* initWindow(std::string wName = "Test Window", const int width = WIDTH, const int height = HEIGHT)
 {
 	glfwInit();
@@ -53,7 +60,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 	app->camera.processMouseMovement(xoffset, yoffset);
 
-	app->guiRenderer->handleMousePos(static_cast<float>(xpos), static_cast<float>(ypos)); // Pass mouse position to ImGui for UI interaction);
+	app->guiRenderer->handleMousePos(static_cast<float>(xpos * INPUT_SCALE), static_cast<float>(ypos * INPUT_SCALE)); // Pass mouse position to ImGui for UI interaction);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
