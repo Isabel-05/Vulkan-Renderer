@@ -40,6 +40,7 @@ public:
 	// Frame-by-frame rendering operations
 	void newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy, uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);
+	void updateDisplaySize(GLFWwindow* window);
 	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); 
 
 	// Input event handling
