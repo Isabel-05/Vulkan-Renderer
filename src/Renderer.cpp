@@ -3,13 +3,10 @@
 #include <chrono>
 #include <iostream>
 
-//const std::string MODEL_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/models/Wolf_student_girl.obj";
-//const std::string TEXTURE_PATH = "C:/Users/Administrator/Documents/Projects/Graphics Programming/repos/Vulkan_RenderEngine/textures/WolfGirl_Base.png";
-
-const std::string MODEL_PATH = std::string(ASSET_DIR) + "models/viking_room.obj";
-const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.png";
-const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
-const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
+//const std::string MODEL_PATH = std::string(ASSET_DIR) + "models/viking_room.obj";
+//const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.png";
+//const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
+//const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {
@@ -17,6 +14,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		camera = Camera();
 		context.init(newWindow);
+
+		int winW, fbW;
+		glfwGetWindowSize(newWindow, &winW, nullptr);
+		glfwGetFramebufferSize(newWindow, &fbW, nullptr);
+		inputScale = abs((float)fbW / winW);
 
 		//Base Vulkan setup
 		swapChain.createSwapchain(context);
@@ -36,20 +38,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
 		//ImGui setup
-		guiRenderer = new ImGuiRenderer(context, frameData.maxFramesInFlight);
+		guiRenderer = std::make_unique<ImGuiRenderer>(ImGuiRenderer(context, frameData.maxFramesInFlight));
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
-
-		//RenderObject firstObject;
-		//firstObject.init(context, commandPool, MODEL_PATH, TEXTURE_PATH, frameData.descriptorPool, frameData.materialDSLayout);
-		//firstObject.rotation.x = 270.0f;
-		//firstObject.name = "numba 1";
-		//objectHierarchy.push_back(firstObject);
-		//RenderObject secondObject;
-		//secondObject.init(context, commandPool, MODEL_PATH2, TEXTURE_PATH2, frameData.descriptorPool, frameData.materialDSLayout);
-		//secondObject.name = "numba 2";
-		//objectHierarchy.push_back(secondObject);
-		//objectHierarchy[1].position = glm::vec3(0.0f, 0.0f, 2.0f);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -62,9 +53,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 void VulkanRenderer::cleanup()
 {
-	guiRenderer->cleanup();
+	vkDeviceWaitIdle(context.logicalDevice);
 
-	ImGui_ImplVulkan_Shutdown();
+	guiRenderer->cleanup();
 
 	swapChain.cleanupSwapChain(context);
 
@@ -77,12 +68,14 @@ void VulkanRenderer::cleanup()
 	commandPool.cleanup(context);
 
 	context.cleanup();
-
-	delete guiRenderer;
 }
 
-void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
+
+void VulkanRenderer::drawFrame()
 {
+	glm::mat4 viewMatrix = camera.getViewMatrix();
+	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 20.0f);
+
 	vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
@@ -138,15 +131,11 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	// if (vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, frameData.inFlightFences[currentFrame]) != VK_SUCCESS) {
-	// 	throw std::runtime_error("failed to submit draw command buffer!");
-	// }
-
 	VkResult submitResult = vkQueueSubmit(context.graphicsQueue, 1, &submitInfo, frameData.inFlightFences[currentFrame]);
-if (submitResult != VK_SUCCESS) {
-    std::cerr << "vkQueueSubmit failed with VkResult: " << submitResult << std::endl;
-    throw std::runtime_error("failed to submit draw command buffer!");
-}
+	if (submitResult != VK_SUCCESS) {
+		std::cerr << "vkQueueSubmit failed with VkResult: " << submitResult << std::endl;
+		throw std::runtime_error("failed to submit draw command buffer!");
+	}
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -260,7 +249,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	for (auto& obj : scene.objList)
 	{
-		if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
+		//if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
 		VkBuffer vertexBuffers[] = { obj.mesh.vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -310,5 +299,63 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMa
 	ubo.proj[1][1] *= -1;
 
 	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
+
+
+/////////////
+//PUBLIC API
+
+void VulkanRenderer::onResize()
+{
+	framebufferResized = true;
+}
+
+void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
+{
+	guiRenderer->handleKey(key, scancode, action, mods);
+}
+
+void VulkanRenderer::onMouseMove(double xpos, double ypos, float xoffset, float yoffset)
+{
+	camera.processMouseMovement(xoffset, yoffset);
+	guiRenderer->handleMousePos(static_cast<float>(xpos * inputScale), static_cast<float>(ypos * inputScale));
+}
+
+void VulkanRenderer::onMousePressed(int button, int action, int mods)
+{
+	if (!guiRenderer->isViewportHovered())
+	{
+		guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
+
+		// if the mouse leaves the viewport while the mouse is pressed release the camera
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+		{
+			camera.mousePressed = false;
+		}
+		return;
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		camera.mousePressed = true;  // Set flag to indicate left mouse button is pressed
+	}
+	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+	{
+		camera.mousePressed = false; // Clear flag when left mouse button is released
+	}
+
+	//if mouse leaves window while ui is being pressed set to released
+	guiRenderer->handleMouseButton(button, action);
+}
+
+void VulkanRenderer::onMouseWheel(double xoffset, double yoffset)
+{
+	if (ImGui::GetIO().WantCaptureMouse)
+	{
+		// Pass mouse wheel input to ImGui for UI interaction
+		ImGuiIO& io = ImGui::GetIO();
+		io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
+		return;
+	}
 }
 

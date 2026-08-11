@@ -31,7 +31,7 @@ GLFWwindow* initWindow(std::string wName = "Test Window", const int width = WIDT
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height) 
 {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
-	app->framebufferResized = true;
+	app->onResize();
 }
 
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
@@ -60,62 +60,25 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	// Convert mouse movement to camera rotation
 	// Delta values drive continuous camera orientation changes
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
-	app->camera.processMouseMovement(xoffset, yoffset);
-
-	app->guiRenderer->handleMousePos(static_cast<float>(xpos * INPUT_SCALE), static_cast<float>(ypos * INPUT_SCALE)); // Pass mouse position to ImGui for UI interaction);
+	app->onMouseMove(xpos, ypos, xoffset, yoffset);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
-
-	if (!app->guiRenderer->isViewportHovered())
-	{
-		app->guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
-
-		// if the mouse leaves the viewport while the mouse is pressed release the camera
-		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
-		{
-			app->camera.mousePressed = false;
-		}
-		return;
-	}
-
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-	{
-		app->camera.mousePressed = true;  // Set flag to indicate left mouse button is pressed
-	}
-	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
-	{
-		app->camera.mousePressed = false; // Clear flag when left mouse button is released
-	}
-
-	//if mouse leaves window while ui is being pressed set to released
-	app->guiRenderer->handleMouseButton(button, action);
+	app->onMousePressed(button, action, mods);
 }
 
 void mouse_wheel_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
-	if (ImGui::GetIO().WantCaptureMouse)
-	{
-		// Pass mouse wheel input to ImGui for UI interaction
-		ImGuiIO& io = ImGui::GetIO();
-		io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
-		return;
-	}
+	app->onMouseWheel(xoffset, yoffset);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
-	// Pass key events to ImGui for UI interaction
-	app->guiRenderer->handleKey(key, scancode, action, mods);
-	// If ImGui wants to capture keyboard input, do not process further
-	if (app->guiRenderer->getWantKeyCapture())
-	{
-		return;
-	}
+	app->onKey(key, scancode, action, mods);
 }
 
 
@@ -145,11 +108,6 @@ int main()
 
 	if (renderer.init(window) == EXIT_FAILURE) { return EXIT_FAILURE; }
 
-	int winW, fbW;
-	glfwGetWindowSize(window, &winW, nullptr);
-	glfwGetFramebufferSize(window, &fbW, nullptr);
-	INPUT_SCALE = abs((float)fbW / winW);
-
 
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
@@ -161,12 +119,8 @@ int main()
 
 		glfwPollEvents();
 
-		renderer.drawFrame(
-			renderer.camera.getViewMatrix(),
-			renderer.camera.getProjectionMatrix((float)renderer.swapChain.extent.width / (float)renderer.swapChain.extent.height, 0.1f, 20.0f));
+		renderer.drawFrame();
 	}
-
-	vkDeviceWaitIdle(renderer.context.logicalDevice);
 
 	renderer.cleanup();
 	glfwDestroyWindow(window);

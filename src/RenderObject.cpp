@@ -6,6 +6,48 @@
 #include "Image.h"
 
 
+
+
+glm::mat4 RenderObject::getModelMatrix() const
+{
+	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
+	modelMatrix = glm::scale(modelMatrix, scale);
+	return modelMatrix;
+}
+
+void Mesh::upload(VulkanContext& context, CommandPool& cmdPool)
+{
+	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertices, vertexBuffer, vertexBufferMemory);
+	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
+}
+
+void Material::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = textureImageView;
+	imageInfo.sampler = textureSampler;
+
+	VkWriteDescriptorSet descriptorWrites{};
+
+	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites.dstSet = descriptorSet;
+	descriptorWrites.dstBinding = 1;
+	descriptorWrites.dstArrayElement = 0;
+	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites.descriptorCount = 1;
+	descriptorWrites.pImageInfo = &imageInfo;
+	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
+
+}
+
+
+////////////////////////
+//INIT FUNCTIONS
+
 void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
 	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
@@ -20,43 +62,23 @@ void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::strin
 
 }
 
-glm::mat4 RenderObject::getModelMatrix() const
-{
-	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
-	modelMatrix = glm::scale(modelMatrix, scale);
-	return modelMatrix;
-}
-
 void Mesh::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath)
 {
 	ModelUtil::loadObjFile(modelPath, vertices, indices);
 	upload(context, cmdPool);
 }
 
-void Mesh::upload(VulkanContext& context, CommandPool& cmdPool)
+void Material::init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertices, vertexBuffer, vertexBufferMemory);
-	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
+	ImageUtils::createImageSampler(context, textureSampler);
+	initTexResources(context, cmdPool, texturePath, pool, descriptorSetLayout);
+	createDescriptorSets(context, pool, descriptorSetLayout);
 }
 
-void RenderObject::cleanup(VulkanContext& context)
+void Material::initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	material.cleanup(context);
-	mesh.cleanup(context);
-}
-
-void Mesh::cleanup(VulkanContext& context)
-{
-	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
-	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
-
-	vertices.clear();
-	indices.clear();
+	ImageUtils::createTextureImage(context, cmdPool, texturePath, texture, textureMemory, mipLevels);
+	ImageUtils::createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImageView, mipLevels);
 }
 
 void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
@@ -90,37 +112,25 @@ void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& po
 
 }
 
-void Material::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+
+///////////////////////
+//CLEANUP FUNCTIONS
+
+void RenderObject::cleanup(VulkanContext& context)
 {
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureImageView;
-	imageInfo.sampler = textureSampler;
-
-	VkWriteDescriptorSet descriptorWrites{};
-
-	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites.dstSet = descriptorSet;
-	descriptorWrites.dstBinding = 1;
-	descriptorWrites.dstArrayElement = 0;
-	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites.descriptorCount = 1;
-	descriptorWrites.pImageInfo = &imageInfo;
-	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-
+	material.cleanup(context);
+	mesh.cleanup(context);
 }
 
-void Material::initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void Mesh::cleanup(VulkanContext& context)
 {
-	ImageUtils::createTextureImage(context, cmdPool, texturePath, texture, textureMemory, mipLevels);
-	ImageUtils::createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImageView, mipLevels);
-}
+	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
+	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
 
-void Material::init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	ImageUtils::createImageSampler(context, textureSampler);
-	initTexResources(context, cmdPool, texturePath, pool, descriptorSetLayout);
-	createDescriptorSets(context, pool, descriptorSetLayout);
+	vertices.clear();
+	indices.clear();
 }
 
 void Material::cleanupTexResources(VulkanContext& context)

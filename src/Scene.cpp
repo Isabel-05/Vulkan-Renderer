@@ -22,7 +22,10 @@ void Scene::deleteObj(VulkanContext& context, uint32_t index)
 {
 	objList[selectedObjId].cleanup(context);
 	objList.erase(objList.begin() + selectedObjId);
-	selectedObjId = objList.size() - 1;
+
+	//underflow handling
+	if(objList.size() != 0)
+		selectedObjId = objList.size() - 1;
 }
 
 uint32_t Scene::getSelectedObjId()

@@ -5,8 +5,6 @@
 #include <vector>
 #include <stdexcept>
 
-#include "CommandPool.h"
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -17,6 +15,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 
+#include "CommandPool.h"
 #include "RenderObject.h"
 #include "Scene.h"
 
@@ -56,7 +55,6 @@ private:
 
 	//init stuff
 	void createPipeline();
-	void initImguiVulkanImpl();
 	void initTexture();
 	void setStyle();
 

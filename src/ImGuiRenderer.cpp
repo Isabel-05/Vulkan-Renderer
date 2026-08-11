@@ -10,6 +10,8 @@
 #include "imgui_internal.h"
 #include <tinyfiledialogs.h>
 
+class VulkanContext;
+
 const std::string baseObjectModelPath = std::string(ASSET_DIR) + "models/BlenderCube.obj";
 const std::string baseObjectTexturePath = std::string(ASSET_DIR) + "textures/WhiteTexture.png";
 
@@ -73,7 +75,6 @@ void ImGuiRenderer::init(float width, float height)
 
 	initResources();
 	createPipeline();
-	initImguiVulkanImpl();
 
 }
 
@@ -341,29 +342,6 @@ void ImGuiRenderer::createPipeline()
 
 }
 
-void ImGuiRenderer::initImguiVulkanImpl()
-{
-	ImGui_ImplVulkan_InitInfo initInfo = {};
-	initInfo.ApiVersion = VK_API_VERSION_1_3;
-	initInfo.UseDynamicRendering = true;
-	initInfo.Device = context->logicalDevice;
-	initInfo.Instance = context->instance;
-	initInfo.DescriptorPool = VK_NULL_HANDLE;
-	initInfo.DescriptorPoolSize = 100;
-	initInfo.PhysicalDevice = context->physicalDevice;
-	initInfo.PipelineCache = pipelineCache;
-	initInfo.Queue = context->graphicsQueue;
-	initInfo.MinImageCount = 2;
-	initInfo.ImageCount = 2;
-	initInfo.Allocator = nullptr;
-	initInfo.CheckVkResultFn = [](VkResult err) {      // very useful while debugging this
-		if (err != VK_SUCCESS) throw std::runtime_error("ImGui Vulkan error: " + std::to_string(err));
-		};
-
-
-	ImGui_ImplVulkan_Init(&initInfo);
-}
-
 void ImGuiRenderer::initTexture()
 {
 	ImageUtils::createImage(
@@ -583,8 +561,6 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
 
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
-
-	ImGui::ShowDemoWindow();
 
 	ImGui::End();
 
@@ -909,17 +885,7 @@ void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& comm
 
 void ImGuiRenderer::handleKey(int key, int scancode, int action, int mods)
 {
-	ImGuiIO& io = ImGui::GetIO();
-
-	// Map the platform-specific key action to a boolean state
-	// In GLFW: GLFW_RELEASE = 0, GLFW_PRESS = 1, GLFW_REPEAT = 2
-	bool pressed = (action != 0);
-
-	// Modern ImGui (v1.87+) uses AddKeyEvent to queue input events.
-	// This handles key states, modifiers, and repeat logic internally.
-	// Most backends can cast native key codes directly to ImGuiKey.
-	ImGuiKey imguiKey = GlfwKeyToImGuiKey(key); // Assuming key is compatible with ImGuiKey enum
-	io.AddKeyEvent(imguiKey, pressed);
+	//TODO
 }
 
 void ImGuiRenderer::handleMousePos(float x, float y)
@@ -945,80 +911,4 @@ void ImGuiRenderer::charPressed(uint32_t key)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddInputCharacter(key);
-}
-
-ImGuiKey ImGuiRenderer::GlfwKeyToImGuiKey(int key)
-{
-	switch (key)
-	{
-		// Navigation & Control
-	case GLFW_KEY_TAB:           return ImGuiKey_Tab;
-	case GLFW_KEY_LEFT:          return ImGuiKey_LeftArrow;
-	case GLFW_KEY_RIGHT:         return ImGuiKey_RightArrow;
-	case GLFW_KEY_UP:            return ImGuiKey_UpArrow;
-	case GLFW_KEY_DOWN:          return ImGuiKey_DownArrow;
-	case GLFW_KEY_PAGE_UP:       return ImGuiKey_PageUp;
-	case GLFW_KEY_PAGE_DOWN:     return ImGuiKey_PageDown;
-	case GLFW_KEY_HOME:          return ImGuiKey_Home;
-	case GLFW_KEY_END:           return ImGuiKey_End;
-	case GLFW_KEY_INSERT:        return ImGuiKey_Insert;
-	case GLFW_KEY_DELETE:        return ImGuiKey_Delete;
-	case GLFW_KEY_BACKSPACE:     return ImGuiKey_Backspace;
-	case GLFW_KEY_SPACE:         return ImGuiKey_Space;
-	case GLFW_KEY_ENTER:         return ImGuiKey_Enter;
-	case GLFW_KEY_ESCAPE:        return ImGuiKey_Escape;
-
-		// Modifiers
-	case GLFW_KEY_LEFT_SHIFT:    return ImGuiKey_LeftShift;
-	case GLFW_KEY_LEFT_CONTROL:  return ImGuiKey_LeftCtrl;
-	case GLFW_KEY_LEFT_ALT:      return ImGuiKey_LeftAlt;
-	case GLFW_KEY_LEFT_SUPER:    return ImGuiKey_LeftSuper;
-	case GLFW_KEY_RIGHT_SHIFT:   return ImGuiKey_RightShift;
-	case GLFW_KEY_RIGHT_CONTROL: return ImGuiKey_RightCtrl;
-	case GLFW_KEY_RIGHT_ALT:     return ImGuiKey_RightAlt;
-	case GLFW_KEY_RIGHT_SUPER:   return ImGuiKey_RightSuper;
-
-		// Letters (A-Z)
-	case GLFW_KEY_A:             return ImGuiKey_A;
-	case GLFW_KEY_B:             return ImGuiKey_B;
-	case GLFW_KEY_C:             return ImGuiKey_C;
-	case GLFW_KEY_D:             return ImGuiKey_D;
-	case GLFW_KEY_E:             return ImGuiKey_E;
-	case GLFW_KEY_F:             return ImGuiKey_F;
-	case GLFW_KEY_G:             return ImGuiKey_G;
-	case GLFW_KEY_H:             return ImGuiKey_H;
-	case GLFW_KEY_I:             return ImGuiKey_I;
-	case GLFW_KEY_J:             return ImGuiKey_J;
-	case GLFW_KEY_K:             return ImGuiKey_K;
-	case GLFW_KEY_L:             return ImGuiKey_L;
-	case GLFW_KEY_M:             return ImGuiKey_M;
-	case GLFW_KEY_N:             return ImGuiKey_N;
-	case GLFW_KEY_O:             return ImGuiKey_O;
-	case GLFW_KEY_P:             return ImGuiKey_P;
-	case GLFW_KEY_Q:             return ImGuiKey_Q;
-	case GLFW_KEY_R:             return ImGuiKey_R;
-	case GLFW_KEY_S:             return ImGuiKey_S;
-	case GLFW_KEY_T:             return ImGuiKey_T;
-	case GLFW_KEY_U:             return ImGuiKey_U;
-	case GLFW_KEY_V:             return ImGuiKey_V;
-	case GLFW_KEY_W:             return ImGuiKey_W;
-	case GLFW_KEY_X:             return ImGuiKey_X;
-	case GLFW_KEY_Y:             return ImGuiKey_Y;
-	case GLFW_KEY_Z:             return ImGuiKey_Z;
-
-		// Numbers (0-9)
-	case GLFW_KEY_0:             return ImGuiKey_0;
-	case GLFW_KEY_1:             return ImGuiKey_1;
-	case GLFW_KEY_2:             return ImGuiKey_2;
-	case GLFW_KEY_3:             return ImGuiKey_3;
-	case GLFW_KEY_4:             return ImGuiKey_4;
-	case GLFW_KEY_5:             return ImGuiKey_5;
-	case GLFW_KEY_6:             return ImGuiKey_6;
-	case GLFW_KEY_7:             return ImGuiKey_7;
-	case GLFW_KEY_8:             return ImGuiKey_8;
-	case GLFW_KEY_9:             return ImGuiKey_9;
-
-	default:                     return ImGuiKey_None;
-	}
-	return ImGuiKey_None;
 }
