@@ -2,6 +2,7 @@
 #include "VulkanContext.h"
 #include "BufferUtils.h"
 #include "Image.h"
+#include "Scene.h"
 
 
 #include <iostream>
@@ -547,8 +548,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
-	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ImGui::NewFrame();
 
@@ -584,12 +584,14 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
 
+	ImGui::ShowDemoWindow();
+
 	ImGui::End();
 
 
-	createObjectHierarchy(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+	createObjectHierarchy(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
 
-	createPropertiesPanel(cmdPool, currentFrame, objHierarchy, selectedObjId, pool, descriptorSetLayout);
+	createPropertiesPanel(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
 
 	
 	ImGui::EndFrame();
@@ -603,26 +605,21 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, std::v
 	}
 }
 
-void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
-	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ImGui::Begin("Object Hierarchy");
 
 	if (ImGui::Button("Add Object"))
 	{
-		RenderObject newObj;
-		newObj.init((*context), cmdPool, baseObjectModelPath, baseObjectTexturePath, pool, descriptorSetLayout);
-		objHierarchy.push_back(newObj);
-		selectedObjId = objHierarchy.size() - 1; // Select the newly added object
-		objHierarchy[selectedObjId].name = "Object " + std::to_string(selectedObjId + 1);
+		scene.addObj((*context), cmdPool, baseObjectModelPath, baseObjectTexturePath, pool, descriptorSetLayout);
 	}
 
-	for (int i = 0; i < objHierarchy.size(); i++)
+	for (int i = 0; i < scene.objList.size(); i++)
 	{
-		bool isSelected = (i == selectedObjId);
-		if (ImGui::Selectable(objHierarchy[i].name.c_str(), isSelected))
+		bool isSelected = (i == scene.getSelectedObjId());
+		if (ImGui::Selectable(scene.objList[i].name.c_str(), isSelected))
 		{
-			selectedObjId = i;
+			scene.setSelectedObjId(i);
 		}
 	}
 
@@ -644,31 +641,28 @@ void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t current
 		windowSize.y - buttonSize.y - style.WindowPadding.y
 	));
 
-	if (ImGui::Button("remove Object") && objHierarchy.size() > 0)
+	if (ImGui::Button("remove Object") && scene.objList.size() > 0)
 	{
 		vkDeviceWaitIdle(context->logicalDevice);
-		objHierarchy[selectedObjId].cleanup((*context));
-		objHierarchy.erase(objHierarchy.begin() + selectedObjId);
-		selectedObjId = objHierarchy.size() - 1;
+		scene.deleteObj(*context, scene.getSelectedObjId());
 	}
 
 	ImGui::End();
 }
 
-void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, std::vector<RenderObject>& objHierarchy,
-	uint32_t& selectedObjId, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	ImGui::Begin("Object Properties");
 
-	if (objHierarchy.size() == 0)
+	if (scene.objList.size() == 0)
 	{
 		ImGui::End();
 		return;
 	}
 
-	ImGui::DragFloat3("position x", &objHierarchy[selectedObjId].position.x, 0.01f, -3.0f, 3.0f);
-	ImGui::DragFloat3("rotation x", &objHierarchy[selectedObjId].rotation.x, 1.0f, 0.0f, 360.0f);
-	ImGui::DragFloat3("scale x", &objHierarchy[selectedObjId].scale.x, 0.005f, 0.1f, 3.0f);
+	ImGui::DragFloat3("position", &scene.objList[scene.getSelectedObjId()].position.x, 0.01f, -3.0f, 3.0f);
+	ImGui::DragFloat3("rotation", &scene.objList[scene.getSelectedObjId()].rotation.x, 1.0f, 0.0f, 360.0f);
+	ImGui::DragFloat3("scale", &scene.objList[scene.getSelectedObjId()].scale.x, 0.005f, 0.1f, 3.0f);
 
 
 	if (ImGui::Button("Change Mesh Component"))
@@ -691,12 +685,8 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 
 		vkDeviceWaitIdle(context->logicalDevice);
 
-		objHierarchy[selectedObjId].mesh.cleanup((*context));
-		objHierarchy[selectedObjId].mesh.vertices.clear();
-		objHierarchy[selectedObjId].mesh.indices.clear();
-
-		ModelUtil::loadObjFile(filePath, objHierarchy[selectedObjId].mesh.vertices, objHierarchy[selectedObjId].mesh.indices);
-		objHierarchy[selectedObjId].mesh.upload((*context), cmdPool);
+		scene.objList[scene.getSelectedObjId()].mesh.cleanup(*context);
+		scene.objList[scene.getSelectedObjId()].mesh.init(*context, cmdPool, filePath);
 	}
 
 	if (ImGui::Button("Change Texture Component"))
@@ -719,18 +709,11 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 
 		vkDeviceWaitIdle(context->logicalDevice);
 
-		vkDestroyImageView(context->logicalDevice, objHierarchy[selectedObjId].material.textureImageView, nullptr);
-		vkDestroyImage(context->logicalDevice, objHierarchy[selectedObjId].material.texture, nullptr);
-		vkFreeMemory(context->logicalDevice, objHierarchy[selectedObjId].material.textureMemory, nullptr);
-
-		ImageUtils::createTextureImage((*context), cmdPool, filePath, objHierarchy[selectedObjId].material.texture,
-			objHierarchy[selectedObjId].material.textureMemory, objHierarchy[selectedObjId].material.mipLevels);
-
-		ImageUtils::createImageView((*context), objHierarchy[selectedObjId].material.texture,
-			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, objHierarchy[selectedObjId].material.textureImageView, objHierarchy[selectedObjId].material.mipLevels);
-
-		objHierarchy[selectedObjId].material.updateDescriptorSets((*context), pool, descriptorSetLayout);
+		scene.objList[scene.getSelectedObjId()].material.cleanupTexResources(*context);
+		scene.objList[scene.getSelectedObjId()].material.initTexResources(*context, cmdPool, filePath, pool, descriptorSetLayout);
+		scene.objList[scene.getSelectedObjId()].material.updateDescriptorSets(*context, pool, descriptorSetLayout);
 	}
+
 	ImGui::End();
 }
 
@@ -935,7 +918,7 @@ void ImGuiRenderer::handleKey(int key, int scancode, int action, int mods)
 	// Modern ImGui (v1.87+) uses AddKeyEvent to queue input events.
 	// This handles key states, modifiers, and repeat logic internally.
 	// Most backends can cast native key codes directly to ImGuiKey.
-	ImGuiKey imguiKey = (ImGuiKey)key; // Assuming key is compatible with ImGuiKey enum
+	ImGuiKey imguiKey = GlfwKeyToImGuiKey(key); // Assuming key is compatible with ImGuiKey enum
 	io.AddKeyEvent(imguiKey, pressed);
 }
 
@@ -964,3 +947,78 @@ void ImGuiRenderer::charPressed(uint32_t key)
 	io.AddInputCharacter(key);
 }
 
+ImGuiKey ImGuiRenderer::GlfwKeyToImGuiKey(int key)
+{
+	switch (key)
+	{
+		// Navigation & Control
+	case GLFW_KEY_TAB:           return ImGuiKey_Tab;
+	case GLFW_KEY_LEFT:          return ImGuiKey_LeftArrow;
+	case GLFW_KEY_RIGHT:         return ImGuiKey_RightArrow;
+	case GLFW_KEY_UP:            return ImGuiKey_UpArrow;
+	case GLFW_KEY_DOWN:          return ImGuiKey_DownArrow;
+	case GLFW_KEY_PAGE_UP:       return ImGuiKey_PageUp;
+	case GLFW_KEY_PAGE_DOWN:     return ImGuiKey_PageDown;
+	case GLFW_KEY_HOME:          return ImGuiKey_Home;
+	case GLFW_KEY_END:           return ImGuiKey_End;
+	case GLFW_KEY_INSERT:        return ImGuiKey_Insert;
+	case GLFW_KEY_DELETE:        return ImGuiKey_Delete;
+	case GLFW_KEY_BACKSPACE:     return ImGuiKey_Backspace;
+	case GLFW_KEY_SPACE:         return ImGuiKey_Space;
+	case GLFW_KEY_ENTER:         return ImGuiKey_Enter;
+	case GLFW_KEY_ESCAPE:        return ImGuiKey_Escape;
+
+		// Modifiers
+	case GLFW_KEY_LEFT_SHIFT:    return ImGuiKey_LeftShift;
+	case GLFW_KEY_LEFT_CONTROL:  return ImGuiKey_LeftCtrl;
+	case GLFW_KEY_LEFT_ALT:      return ImGuiKey_LeftAlt;
+	case GLFW_KEY_LEFT_SUPER:    return ImGuiKey_LeftSuper;
+	case GLFW_KEY_RIGHT_SHIFT:   return ImGuiKey_RightShift;
+	case GLFW_KEY_RIGHT_CONTROL: return ImGuiKey_RightCtrl;
+	case GLFW_KEY_RIGHT_ALT:     return ImGuiKey_RightAlt;
+	case GLFW_KEY_RIGHT_SUPER:   return ImGuiKey_RightSuper;
+
+		// Letters (A-Z)
+	case GLFW_KEY_A:             return ImGuiKey_A;
+	case GLFW_KEY_B:             return ImGuiKey_B;
+	case GLFW_KEY_C:             return ImGuiKey_C;
+	case GLFW_KEY_D:             return ImGuiKey_D;
+	case GLFW_KEY_E:             return ImGuiKey_E;
+	case GLFW_KEY_F:             return ImGuiKey_F;
+	case GLFW_KEY_G:             return ImGuiKey_G;
+	case GLFW_KEY_H:             return ImGuiKey_H;
+	case GLFW_KEY_I:             return ImGuiKey_I;
+	case GLFW_KEY_J:             return ImGuiKey_J;
+	case GLFW_KEY_K:             return ImGuiKey_K;
+	case GLFW_KEY_L:             return ImGuiKey_L;
+	case GLFW_KEY_M:             return ImGuiKey_M;
+	case GLFW_KEY_N:             return ImGuiKey_N;
+	case GLFW_KEY_O:             return ImGuiKey_O;
+	case GLFW_KEY_P:             return ImGuiKey_P;
+	case GLFW_KEY_Q:             return ImGuiKey_Q;
+	case GLFW_KEY_R:             return ImGuiKey_R;
+	case GLFW_KEY_S:             return ImGuiKey_S;
+	case GLFW_KEY_T:             return ImGuiKey_T;
+	case GLFW_KEY_U:             return ImGuiKey_U;
+	case GLFW_KEY_V:             return ImGuiKey_V;
+	case GLFW_KEY_W:             return ImGuiKey_W;
+	case GLFW_KEY_X:             return ImGuiKey_X;
+	case GLFW_KEY_Y:             return ImGuiKey_Y;
+	case GLFW_KEY_Z:             return ImGuiKey_Z;
+
+		// Numbers (0-9)
+	case GLFW_KEY_0:             return ImGuiKey_0;
+	case GLFW_KEY_1:             return ImGuiKey_1;
+	case GLFW_KEY_2:             return ImGuiKey_2;
+	case GLFW_KEY_3:             return ImGuiKey_3;
+	case GLFW_KEY_4:             return ImGuiKey_4;
+	case GLFW_KEY_5:             return ImGuiKey_5;
+	case GLFW_KEY_6:             return ImGuiKey_6;
+	case GLFW_KEY_7:             return ImGuiKey_7;
+	case GLFW_KEY_8:             return ImGuiKey_8;
+	case GLFW_KEY_9:             return ImGuiKey_9;
+
+	default:                     return ImGuiKey_None;
+	}
+	return ImGuiKey_None;
+}

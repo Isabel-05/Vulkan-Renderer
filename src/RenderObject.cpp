@@ -9,18 +9,15 @@
 void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
 	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	ModelUtil::loadObjFile(modelPath, mesh.vertices, mesh.indices);
+
+	mesh.init(context, cmdPool, modelPath);
+	material.init(context, cmdPool, texturePath, pool, descriptorSetLayout);
+
 	scale = glm::vec3(1.0f, 1.0f, 1.0f);
 	position = glm::vec3(0.0f, 0.0f, 1.0f);
 	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
-	ImageUtils::createTextureImage(context, cmdPool, texturePath, material.texture, material.textureMemory, material.mipLevels);
-	ImageUtils::createImageView(context, material.texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, material.textureImageView, material.mipLevels);
-	ImageUtils::createImageSampler(context, material.textureSampler);
-	material.createDescriptorSets(context, pool, descriptorSetLayout);
-	
 
-	mesh.upload(context, cmdPool);
 }
 
 glm::mat4 RenderObject::getModelMatrix() const
@@ -31,6 +28,12 @@ glm::mat4 RenderObject::getModelMatrix() const
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
 	modelMatrix = glm::scale(modelMatrix, scale);
 	return modelMatrix;
+}
+
+void Mesh::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath)
+{
+	ModelUtil::loadObjFile(modelPath, vertices, indices);
+	upload(context, cmdPool);
 }
 
 void Mesh::upload(VulkanContext& context, CommandPool& cmdPool)
@@ -51,6 +54,9 @@ void Mesh::cleanup(VulkanContext& context)
 	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
 	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
 	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
+
+	vertices.clear();
+	indices.clear();
 }
 
 void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
@@ -104,12 +110,30 @@ void Material::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& po
 
 }
 
-void Material::cleanup(VulkanContext& context)
+void Material::initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
+	ImageUtils::createTextureImage(context, cmdPool, texturePath, texture, textureMemory, mipLevels);
+	ImageUtils::createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImageView, mipLevels);
+}
+
+void Material::init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+	ImageUtils::createImageSampler(context, textureSampler);
+	initTexResources(context, cmdPool, texturePath, pool, descriptorSetLayout);
+	createDescriptorSets(context, pool, descriptorSetLayout);
+}
+
+void Material::cleanupTexResources(VulkanContext& context)
+{
 	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
 	vkDestroyImage(context.logicalDevice, texture, nullptr);
 	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
+}
+
+void Material::cleanup(VulkanContext& context)
+{
+	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
+	cleanupTexResources(context);
 }
 
 

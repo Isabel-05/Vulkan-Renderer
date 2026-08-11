@@ -21,6 +21,7 @@ struct Mesh
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath);
 	void upload(VulkanContext& context, CommandPool& cmdPool);
 	void cleanup(VulkanContext& context);
 };
@@ -40,6 +41,10 @@ struct Material
 	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 	void updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
+	void initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+	void init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+
+	void cleanupTexResources(VulkanContext& context);
 	void cleanup(VulkanContext& context);
 };
 

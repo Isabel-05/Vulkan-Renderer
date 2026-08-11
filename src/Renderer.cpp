@@ -68,9 +68,7 @@ void VulkanRenderer::cleanup()
 
 	swapChain.cleanupSwapChain(context);
 
-	for (RenderObject& obj : objectHierarchy) {
-		obj.cleanup(context);
-	}
+	scene.cleanup(context);
 
 	graphicsPipeline.cleanup(context);
 
@@ -99,7 +97,7 @@ void VulkanRenderer::drawFrame(glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	guiRenderer->newFrame(commandPool, currentFrame, objectHierarchy, selectedObjId, frameData.descriptorPool, frameData.materialDSLayout);
+	guiRenderer->newFrame(commandPool, currentFrame, scene, frameData.descriptorPool, frameData.materialDSLayout);
 
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
@@ -260,7 +258,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = swapChain.extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	for (auto& obj : objectHierarchy)
+	for (auto& obj : scene.objList)
 	{
 		if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
 		VkBuffer vertexBuffers[] = { obj.mesh.vertexBuffer };

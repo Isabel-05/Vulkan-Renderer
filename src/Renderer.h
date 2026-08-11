@@ -6,6 +6,7 @@
 #include "GraphicsState.h"
 #include "RenderObject.h"
 #include "Camera.h"
+#include "Scene.h"
 
 class ImGuiRenderer;
 
@@ -35,8 +36,7 @@ private:
 	CommandPool commandPool;
 	FrameData frameData;
 
-	std::vector<RenderObject> objectHierarchy;
-	uint32_t selectedObjId = 0;
+	Scene scene;
 
 	uint32_t currentFrame = 0;
 
