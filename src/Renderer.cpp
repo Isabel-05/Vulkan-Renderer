@@ -249,27 +249,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	for (auto& obj : scene.objList)
 	{
-		//if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
-		VkBuffer vertexBuffers[] = { obj.mesh.vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-		vkCmdBindIndexBuffer(commandBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		//bind descriptor sets (for passing uniform buffer data to shaders)
-		VkDescriptorSet sets[] = { frameData.cameraDescriptorSets[currentFrame], obj.material.descriptorSet };
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.pipelineLayout, 0, 2, sets, 0, nullptr);
-
-		//push constants (for passing model matrix to vertex shader)
-		glm::mat4 modelMatrix = obj.getModelMatrix();
-		vkCmdPushConstants(commandBuffer, graphicsPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
-
-		//Draw command
-		//parameter 3: vertex count
-		//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
-		//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
-		//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(obj.mesh.indices.size()), 1, 0, 0, 0);
+		obj.draw(commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 	}
 
 	vkCmdEndRendering(commandBuffer);
