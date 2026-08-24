@@ -63,6 +63,8 @@ public:
 
 	glm::mat4 getModelMatrix() const;
 
+	void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
+
 	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
 		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
