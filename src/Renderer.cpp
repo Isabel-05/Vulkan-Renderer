@@ -3,10 +3,6 @@
 #include <chrono>
 #include <iostream>
 
-//const std::string MODEL_PATH = std::string(ASSET_DIR) + "models/viking_room.obj";
-//const std::string TEXTURE_PATH = std::string(ASSET_DIR) + "textures/viking_room.png";
-//const std::string MODEL_PATH2 = std::string(ASSET_DIR) + "models/Wolf_student_girl.obj";
-//const std::string TEXTURE_PATH2 = std::string(ASSET_DIR) + "textures/WolfGirl_Base.png";
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
 {

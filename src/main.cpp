@@ -8,13 +8,6 @@ static ImGui_ImplVulkanH_Window g_MainWindowData;
 const int WIDTH = 1800;
 const int HEIGHT = 1200;
 
-
-//#ifdef __APPLE__
-//	float INPUT_SCALE = 2.0f;
-//#else
-//	float INPUT_SCALE = 1.0f;
-//#endif
-
 float INPUT_SCALE = 1.0f;
 
 GLFWwindow* initWindow(std::string wName = "Test Window", const int width = WIDTH, const int height = HEIGHT)

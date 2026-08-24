@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.28)
 project(VulkanRenderer LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -12,9 +12,7 @@ include(FetchContent)
 # ------------------------------------------------------------------
 find_package(Vulkan REQUIRED)
 
-# ------------------------------------------------------------------
-# GLFW
-# ------------------------------------------------------------------
+
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -26,9 +24,6 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-# ------------------------------------------------------------------
-# GLM (header-only)
-# ------------------------------------------------------------------
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -36,8 +31,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+FetchContent_Declare(
+    EnTT
+    GIT_REPOSITORY https://github.com/skypjack/entt.git
+    GIT_TAG        v3.16.0
+)
+FetchContent_MakeAvailable(EnTT)
+
 # ------------------------------------------------------------------
-# Dear ImGui (docking branch - required for DockSpaceOverViewport)
+# Dear ImGui 
 # Built as a small static library from the fetched sources.
 # ------------------------------------------------------------------
 FetchContent_Declare(
@@ -62,9 +64,7 @@ target_include_directories(imgui PUBLIC
 )
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 
-# ------------------------------------------------------------------
-# Your renderer
-# ------------------------------------------------------------------
+
 file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 file(GLOB HEADERS ${CMAKE_SOURCE_DIR}/src/*.h)
 
@@ -86,6 +86,7 @@ target_link_libraries(VulkanRenderer PRIVATE
     Vulkan::Vulkan
     glfw
     glm::glm
+    EnTT::EnTT
     imgui
     tinyfiledialogs
 )
@@ -132,10 +133,3 @@ endforeach()
 
 add_custom_target(Shaders DEPENDS ${SPIRV_BINARIES})
 add_dependencies(VulkanRenderer Shaders)
-
-# ------------------------------------------------------------------
-# macOS / MoltenVK note:
-# VulkanContext.cpp/.h need the portability-enumeration instance
-# extension and portability-subset device extension enabled under
-# __APPLE__. See the accompanying instructions for the exact patch.
-# ------------------------------------------------------------------
