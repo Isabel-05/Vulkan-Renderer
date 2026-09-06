@@ -69,6 +69,8 @@ void ImGuiRenderer::init(float width, float height)
 	// Set display size
 	io.DisplaySize = ImVec2(width, height);
 	io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+	io.WantCaptureKeyboard = true;
+	io.WantTextInput = true;
 
 	//Style
 	setStyle();
@@ -564,6 +566,8 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 
 	ImGui::End();
 
+	ImGui::ShowDemoWindow();
+
 
 	createObjectHierarchy(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
 
@@ -602,7 +606,7 @@ void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t current
 	const char* label = "remove Object";
 	ImGuiStyle& style = ImGui::GetStyle();
 
-	// 2. Calculate button size (or pass a fixed size like ImVec2(100, 30))
+	//Calculate button size (or pass a fixed size like ImVec2(100, 30))
 	ImVec2 labelSize = ImGui::CalcTextSize(label);
 	ImVec2 buttonSize = ImVec2(
 		labelSize.x + style.FramePadding.x * 2.0f,
@@ -611,7 +615,7 @@ void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t current
 
 	ImVec2 windowSize = ImGui::GetWindowSize();
 
-	// 4. Position cursor relative to top-left of the window
+	//Position cursor relative to top-left of the window
 	ImGui::SetCursorPos(ImVec2(
 		windowSize.x - buttonSize.x - style.WindowPadding.x,
 		windowSize.y - buttonSize.y - style.WindowPadding.y
@@ -706,7 +710,6 @@ void ImGuiRenderer::setupDockspace(ImGuiID dockspace_id)
 
 		ImGuiID dock_main = dockspace_id;
 
-		// Split left/right first � dock_left gets 30%, dock_main (right) keeps the rest
 		ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, 0.30f, nullptr, &dock_main);
 
 		// Now split the left column top/bottom for the stacked pair

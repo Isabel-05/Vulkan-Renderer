@@ -6,10 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 
-# ------------------------------------------------------------------
-# Vulkan (uses the VULKAN_SDK env var set by the LunarG SDK install
-# on both Windows and macOS - no hardcoded SDK path needed)
-# ------------------------------------------------------------------
 find_package(Vulkan REQUIRED)
 
 
@@ -38,10 +34,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(EnTT)
 
-# ------------------------------------------------------------------
-# Dear ImGui 
-# Built as a small static library from the fetched sources.
-# ------------------------------------------------------------------
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -91,16 +83,14 @@ target_link_libraries(VulkanRenderer PRIVATE
     tinyfiledialogs
 )
 
-# Bakes the asset/shader-output directories into the binary at compile
-# time, so the source no longer needs any hardcoded absolute paths.
+# Bakes the asset/shader-output directories into the binary at compile time
 target_compile_definitions(VulkanRenderer PRIVATE
     ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/"
     SHADER_DIR="${CMAKE_BINARY_DIR}/shaders/"
 )
 
-# ------------------------------------------------------------------
+
 # Compile shaders at build time with glslc (ships with the Vulkan SDK)
-# ------------------------------------------------------------------
 find_program(GLSLC_EXECUTABLE glslc HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin")
 if(NOT GLSLC_EXECUTABLE)
     message(FATAL_ERROR "glslc not found - make sure the Vulkan SDK is installed and VULKAN_SDK is set")

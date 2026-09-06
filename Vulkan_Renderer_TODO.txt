@@ -1,0 +1,62 @@
+CURRENT:
+
+- Material System
+
+- Make Editor better
+
+- Mesh / Material Representations
+
+- Render edges and vertices
+
+
+NEXT:
+
+- Selection System
+
+- selecting things in viewport with raycast
+
+- Command System // Editing Actions
+
+- making the camera better
+
+
+FUTURE:
+
+- Modifiers / Dependency Graph
+
+- Particle system // PS editor
+
+- Lighting Models/PBR
+
+- Path tracer
+
+- Material Node editor
+
+- Simulations
+
+- Skeletal Animation // GLTF support
+
+
+QUALITY OF LIFE:
+
+- grid floor
+
+- Make UI look nicer
+
+- make keyboard inputs work
+
+- add renaming with right click on object
+
+
+REMINDERS:
+
+- Right now the Model Matrix is being transferred to the gpu via push constant
+if push constant space becomes tight every obj will need its own ubo
+
+- Pipeline is set to CULL\_MODE\_NONE rn because of the viking model
+
+- mip mapping (blitting) support is not being queried atm
+
+- Sample shading is enabled (MSAA inside the Silhouette, comes at performance cost)
+
+- Maximum amount of render objects is set in framedata.h but can be increased
