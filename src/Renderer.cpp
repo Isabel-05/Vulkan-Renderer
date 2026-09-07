@@ -1,5 +1,6 @@
 #include "Renderer.h"
 #include "ImGuiRenderer.h"
+
 #include <chrono>
 #include <iostream>
 
@@ -37,6 +38,14 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer = std::make_unique<ImGuiRenderer>(ImGuiRenderer(context, frameData.maxFramesInFlight));
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
+
+		DMesh dmesh;
+		dmesh.init(std::string(ASSET_DIR) + "models/BlenderCube.obj");
+		DMaterial dmaterial;
+		dmaterial.init(std::vector<std::string>{ std::string(ASSET_DIR) + "textures/viking_room.png" });
+
+		cube.init(context, commandPool, dmesh, dmaterial, frameData.descriptorPool, frameData.materialDSLayout);
+		cube.name = "Cube";
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -243,10 +252,15 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = swapChain.extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	for (auto& obj : scene.objList)
-	{
-		obj.draw(commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
-	}
+	//for (auto& obj : scene.objList)
+	//{
+	//	obj.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
+	//}
+
+	ct += 0.000001f;
+	cube.mesh.dataMesh->vertices[0].position.y += ct;
+	cube.mesh.dataMesh->isDirty = true;
+	cube.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 
 	vkCmdEndRendering(commandBuffer);
 

@@ -1,110 +1,50 @@
 #include "RenderObject.h"
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-
 #include "BufferUtils.h"
 #include "Image.h"
 
+///////////////
+//MESH
 
-glm::mat4 RenderObject::getModelMatrix() const
+void GpuMesh::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
 {
-	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
-	modelMatrix = glm::scale(modelMatrix, scale);
-	return modelMatrix;
-}
-
-void RenderObject::draw(VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
-{
-			//if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
-		VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-		vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		//bind descriptor sets (for passing uniform buffer data to shaders)
-		VkDescriptorSet sets[] = { cameraDS, material.descriptorSet };
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 2, sets, 0, nullptr);
-
-		//push constants (for passing model matrix to vertex shader)
-		glm::mat4 modelMatrix = getModelMatrix();
-		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
-
-		//Draw command
-		//parameter 3: vertex count
-		//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
-		//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
-		//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(mesh.indices.size()), 1, 0, 0, 0);
-}
-
-void Mesh::upload(VulkanContext& context, CommandPool& cmdPool)
-{
-	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertices, vertexBuffer, vertexBufferMemory);
-	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
-}
-
-void Material::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureImageView;
-	imageInfo.sampler = textureSampler;
-
-	VkWriteDescriptorSet descriptorWrites{};
-
-	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites.dstSet = descriptorSet;
-	descriptorWrites.dstBinding = 1;
-	descriptorWrites.dstArrayElement = 0;
-	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites.descriptorCount = 1;
-	descriptorWrites.pImageInfo = &imageInfo;
-	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-
-}
-
-
-////////////////////////
-//INIT FUNCTIONS
-
-void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
-	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-
-	mesh.init(context, cmdPool, modelPath);
-	material.init(context, cmdPool, texturePath, pool, descriptorSetLayout);
-
-	scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	position = glm::vec3(0.0f, 0.0f, 1.0f);
-	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-
-
-}
-
-void Mesh::init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath)
-{
-	ModelUtil::loadObjFile(modelPath, vertices, indices);
+	dataMesh = std::make_unique<DMesh>(dmesh);
 	upload(context, cmdPool);
 }
 
-void Material::init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void GpuMesh::upload(VulkanContext& context, CommandPool& cmdPool)
 {
+	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, dataMesh->vertices, vertexBuffer, vertexBufferMemory);
+	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, dataMesh->indices, indexBuffer, indexBufferMemory);
+	indexCount = static_cast<uint32_t>(dataMesh->indices.size());
+}
+
+void GpuMesh::cleanup(VulkanContext& context)
+{
+	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
+	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
+	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
+}
+
+/////////////////
+//MATERIAL
+
+
+void GpuMaterial::init(VulkanContext& context, CommandPool& cmdPool, DMaterial& dmaterial, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+	dataMaterial = std::make_unique<DMaterial>(dmaterial);
 	ImageUtils::createImageSampler(context, textureSampler);
-	initTexResources(context, cmdPool, texturePath, pool, descriptorSetLayout);
+	initTexResources(context, cmdPool, pool, descriptorSetLayout);
 	createDescriptorSets(context, pool, descriptorSetLayout);
 }
 
-void Material::initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void GpuMaterial::initTexResources(VulkanContext& context, CommandPool& cmdPool, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	ImageUtils::createTextureImage(context, cmdPool, texturePath, texture, textureMemory, mipLevels);
+	ImageUtils::createTextureImage(context, cmdPool, dataMaterial->texturePaths[0], texture, textureMemory, mipLevels);
 	ImageUtils::createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImageView, mipLevels);
 }
 
-void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void GpuMaterial::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
 	std::vector<VkDescriptorSetLayout> layout(1, descriptorSetLayout);
 	VkDescriptorSetAllocateInfo allocInfo{};
@@ -135,9 +75,106 @@ void Material::createDescriptorSets(VulkanContext& context, VkDescriptorPool& po
 
 }
 
+void GpuMaterial::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = textureImageView;
+	imageInfo.sampler = textureSampler;
 
-///////////////////////
-//CLEANUP FUNCTIONS
+	VkWriteDescriptorSet descriptorWrites{};
+
+	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites.dstSet = descriptorSet;
+	descriptorWrites.dstBinding = 1;
+	descriptorWrites.dstArrayElement = 0;
+	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites.descriptorCount = 1;
+	descriptorWrites.pImageInfo = &imageInfo;
+	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
+
+}
+
+void GpuMaterial::cleanupTexResources(VulkanContext& context)
+{
+	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
+	vkDestroyImage(context.logicalDevice, texture, nullptr);
+	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
+}
+
+void GpuMaterial::cleanup(VulkanContext& context)
+{
+	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
+	cleanupTexResources(context);
+}
+
+
+////////////////
+//RENDER OBJECT
+
+void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh, DMaterial& dmaterial,
+	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+{
+
+	mesh.init(context, cmdPool, dmesh);
+	material.init(context, cmdPool, dmaterial, pool, descriptorSetLayout);
+
+	scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	position = glm::vec3(0.0f, 0.0f, 1.0f);
+	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+}
+
+glm::mat4 RenderObject::getModelMatrix() const
+{
+	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
+	modelMatrix = glm::scale(modelMatrix, scale);
+	return modelMatrix;
+}
+
+void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
+{
+		
+	if (mesh.dataMesh->isDirty)
+	{
+		vkDeviceWaitIdle(context.logicalDevice);
+		mesh.cleanup(context);
+		mesh.upload(context, cmdPool);
+		mesh.dataMesh->isDirty = false;
+	}
+	if (material.dataMaterial->isDirty)
+	{
+		vkDeviceWaitIdle(context.logicalDevice);
+		material.cleanupTexResources(context);
+		material.initTexResources(context, cmdPool, frameData.descriptorPool, frameData.materialDSLayout);
+		material.updateDescriptorSets(context, frameData.descriptorPool, frameData.materialDSLayout);
+		material.dataMaterial->isDirty = false;
+	}
+
+	//if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
+	VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+	//bind descriptor sets (for passing uniform buffer data to shaders)
+	VkDescriptorSet sets[] = { cameraDS, material.descriptorSet };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 2, sets, 0, nullptr);
+
+	//push constants (for passing model matrix to vertex shader)
+	glm::mat4 modelMatrix = getModelMatrix();
+	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+
+	//Draw command
+	//parameter 3: vertex count
+	//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
+	//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
+	//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
+	vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, 0, 0, 0);
+}
 
 void RenderObject::cleanup(VulkanContext& context)
 {
@@ -145,65 +182,3 @@ void RenderObject::cleanup(VulkanContext& context)
 	mesh.cleanup(context);
 }
 
-void Mesh::cleanup(VulkanContext& context)
-{
-	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
-	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
-
-	vertices.clear();
-	indices.clear();
-}
-
-void Material::cleanupTexResources(VulkanContext& context)
-{
-	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
-	vkDestroyImage(context.logicalDevice, texture, nullptr);
-	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
-}
-
-void Material::cleanup(VulkanContext& context)
-{
-	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
-	cleanupTexResources(context);
-}
-
-
-namespace ModelUtil
-{
-	void loadObjFile(std::string filePath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
-	{
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string err;
-		std::string warn;
-
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filePath.c_str())) {
-			throw std::runtime_error(err);
-		}
-
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex{};
-
-				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]
-				};
-
-				vertex.texCoord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-
-				vertex.color = { 1.0f, 1.0f, 1.0f };
-
-				vertices.push_back(vertex);
-				indices.push_back(indices.size());
-			}
-		}
-	}
-}

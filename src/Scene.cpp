@@ -11,11 +11,11 @@ void Scene::cleanup(VulkanContext& context)
 void Scene::addObj(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
 	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	RenderObject obj;
-	obj.init(context, cmdPool, modelPath, texturePath, pool, descriptorSetLayout);
-	obj.name = "Object " + std::to_string(objList.size() + 1);
-	objList.push_back(obj);
-	selectedObjId = objList.size() - 1;
+	//RenderObject obj;
+	//obj.init(context, cmdPool, modelPath, texturePath, pool, descriptorSetLayout);
+	//obj.name = "Object " + std::to_string(objList.size() + 1);
+	//objList.push_back(obj);
+	//selectedObjId = objList.size() - 1;
 }
 
 void Scene::deleteObj(VulkanContext& context, uint32_t index)

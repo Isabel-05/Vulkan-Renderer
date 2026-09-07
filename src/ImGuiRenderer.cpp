@@ -660,10 +660,7 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 			return;
 		}
 
-		vkDeviceWaitIdle(context->logicalDevice);
-
-		scene.objList[scene.getSelectedObjId()].mesh.cleanup(*context);
-		scene.objList[scene.getSelectedObjId()].mesh.init(*context, cmdPool, filePath);
+		
 	}
 
 	if (ImGui::Button("Change Texture Component"))
@@ -683,12 +680,8 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 			ImGui::End();
 			return;
 		}
+		
 
-		vkDeviceWaitIdle(context->logicalDevice);
-
-		scene.objList[scene.getSelectedObjId()].material.cleanupTexResources(*context);
-		scene.objList[scene.getSelectedObjId()].material.initTexResources(*context, cmdPool, filePath, pool, descriptorSetLayout);
-		scene.objList[scene.getSelectedObjId()].material.updateDescriptorSets(*context, pool, descriptorSetLayout);
 	}
 
 	ImGui::End();

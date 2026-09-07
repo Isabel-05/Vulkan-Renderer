@@ -9,6 +9,9 @@
 #include "Scene.h" 
 #include "ImGuiRenderer.h"
 
+#include "DMesh.h"
+#include "DMaterial.h"
+
 #include <memory>
 
 class VulkanRenderer
@@ -51,5 +54,8 @@ private:
 
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
+
+	RenderObject cube;
+	float ct = 0.0f;
 };
 

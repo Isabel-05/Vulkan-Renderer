@@ -2,47 +2,46 @@
 #include "VulkanContext.h"
 #include "CommandPool.h"
 
-#include "Vertex.h"
+#include "DMesh.h"
+#include "DMaterial.h"
+#include "FrameData.h"
 #include <string>
+#include <memory>
 
 
-namespace ModelUtil
+struct GpuMesh
 {
-	void loadObjFile(std::string filePath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-}
-
-struct Mesh
-{
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
+	std::unique_ptr<DMesh> dataMesh;
 
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath);
+	uint32_t indexCount;
+
+	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
 	void upload(VulkanContext& context, CommandPool& cmdPool);
 	void cleanup(VulkanContext& context);
 };
 
-struct Material
+struct GpuMaterial
 {
+	std::unique_ptr<DMaterial> dataMaterial;
+
 	VkImage texture;
 	VkDeviceMemory textureMemory;
 	VkImageView textureImageView;
 	VkSampler textureSampler;
 	uint32_t mipLevels;
 
-	//std::string shaderPath;
-
 	VkDescriptorSet descriptorSet;
 
 	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 	void updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
-	void initTexResources(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-	void init(VulkanContext& context, CommandPool& cmdPool, std::string texturePath, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+	void initTexResources(VulkanContext& context, CommandPool& cmdPool, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+	void init(VulkanContext& context, CommandPool& cmdPool, DMaterial& dmaterial, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	void cleanupTexResources(VulkanContext& context);
 	void cleanup(VulkanContext& context);
@@ -58,14 +57,14 @@ public:
 	glm::vec3 rotation;
 	glm::vec3 scale;
 
-	Mesh mesh;
-	Material material;
+	GpuMesh mesh;
+	GpuMaterial material;
 
 	glm::mat4 getModelMatrix() const;
 
-	void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
+	void draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
 
-	void init(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
+	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh, DMaterial& dmaterial,
 		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
 
 	void cleanup(VulkanContext& context);
