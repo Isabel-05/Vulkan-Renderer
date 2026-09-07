@@ -566,9 +566,6 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 
 	ImGui::End();
 
-	ImGui::ShowDemoWindow();
-
-
 	createObjectHierarchy(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
 
 	createPropertiesPanel(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
