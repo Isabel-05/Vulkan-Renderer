@@ -7,7 +7,7 @@
 
 void GpuMesh::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
 {
-	dataMesh = std::make_unique<DMesh>(dmesh);
+	dataMesh = std::make_shared<DMesh>(dmesh);
 	upload(context, cmdPool, dataMesh->vertices, dataMesh->indices);
 }
 
@@ -32,7 +32,7 @@ void GpuMesh::cleanup(VulkanContext& context)
 
 void GpuMaterial::init(VulkanContext& context, CommandPool& cmdPool, DMaterial& dmaterial, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	dataMaterial = std::make_unique<DMaterial>(dmaterial);
+	dataMaterial = std::make_shared<DMaterial>(dmaterial);
 	ImageUtils::createImageSampler(context, textureSampler);
 	initTexResources(context, cmdPool, pool, descriptorSetLayout);
 	createDescriptorSets(context, pool, descriptorSetLayout);
@@ -134,28 +134,25 @@ glm::mat4 RenderObject::getModelMatrix() const
 	return modelMatrix;
 }
 
-void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
+void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData)
 {
-		
 	if (mesh.dataMesh->isDirty)
 	{
 		vkDeviceWaitIdle(context.logicalDevice);
 
-		for(auto& mod : mesh.dataMesh->modifiers)
+		if (mesh.dataMesh->modifiers.empty())
 		{
-			mod->evaluate(mesh.dataMesh->vertices, mesh.dataMesh->indices, mesh.evalVertices, mesh.evalIndices);
+			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
+			return;
+		}
+
+		for (auto& mod : mesh.dataMesh->modifiers)
+		{
+			mod->evaluate(mesh.evalVertices, mesh.evalIndices);
 		}
 
 		mesh.cleanup(context);
-
-		if(mesh.dataMesh->modifiers.empty())
-		{
-			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
-		}else
-		{
-			mesh.upload(context, cmdPool, mesh.evalVertices, mesh.evalIndices);
-		}
-
+		mesh.upload(context, cmdPool, mesh.evalVertices, mesh.evalIndices);
 		mesh.dataMesh->isDirty = false;
 	}
 	if (material.dataMaterial->isDirty)
@@ -166,8 +163,13 @@ void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData&
 		material.updateDescriptorSets(context, frameData.descriptorPool, frameData.materialDSLayout);
 		material.dataMaterial->isDirty = false;
 	}
+}
 
-	//if (obj.mesh.indices.empty() || obj.mesh.vertices.empty()) continue;
+void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
+{
+		
+	checkAndUpdateMesh(context, cmdPool, frameData);
+
 	VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -182,7 +184,7 @@ void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData&
 	glm::mat4 modelMatrix = getModelMatrix();
 	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
 
-	//Draw command
+	//Draw call
 	//parameter 3: vertex count
 	//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
 	//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.

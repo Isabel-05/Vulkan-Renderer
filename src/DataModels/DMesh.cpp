@@ -18,13 +18,6 @@ void DMesh::init(std::string mPath)
 	loadObj(modelPath);
 }
 
-bool Vertex::operator==(const Vertex& other) const {
-    return position == other.position &&
-           color    == other.color    &&
-           normal   == other.normal   &&
-           texCoord == other.texCoord;
-}
-
 namespace std {
     template<typename T>
     void hashCombine(size_t& seed, const T& v) {

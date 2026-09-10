@@ -1,11 +1,11 @@
 #pragma once
 #include "Vertex.h"
+#include <vector>
 
 class MeshModifier
 {
 public:
-    virtual void evaluate(const std::vector<Vertex> &inVerts, const std::vector<uint32_t> &inIndx,
-        const std::vector<Vertex> &outVerts, const std::vector<uint32_t> &outIndx);
+    virtual void evaluate(std::vector<Vertex>& verts, std::vector<uint32_t>& indx);
 
     virtual void apply(std::vector<Vertex> &verts, std::vector<uint32_t> &indx);
 

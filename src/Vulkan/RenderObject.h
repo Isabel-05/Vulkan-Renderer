@@ -11,7 +11,7 @@
 
 struct GpuMesh
 {
-	std::unique_ptr<DMesh> dataMesh;
+	std::shared_ptr<DMesh> dataMesh;
 
 	std::vector<Vertex> evalVertices;
 	std::vector<uint32_t> evalIndices;
@@ -30,7 +30,7 @@ struct GpuMesh
 
 struct GpuMaterial
 {
-	std::unique_ptr<DMaterial> dataMaterial;
+	std::shared_ptr<DMaterial> dataMaterial;
 
 	VkImage texture;
 	VkDeviceMemory textureMemory;
@@ -65,6 +65,7 @@ public:
 
 	glm::mat4 getModelMatrix() const;
 
+	void checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData);
 	void draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
 
 	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh, DMaterial& dmaterial,

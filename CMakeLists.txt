@@ -57,8 +57,8 @@ target_include_directories(imgui PUBLIC
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 
 
-file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
-file(GLOB HEADERS ${CMAKE_SOURCE_DIR}/src/*.h)
+file(GLOB_RECURSE  SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE  HEADERS ${CMAKE_SOURCE_DIR}/src/*.h)
 
 add_executable(VulkanRenderer ${SOURCES} ${HEADERS})
 
@@ -67,12 +67,22 @@ add_library(tinyfiledialogs STATIC
     ${CMAKE_SOURCE_DIR}/external/tinyfiledialogs/tinyfiledialogs.c
 )
 
+set(SRC_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src)
+foreach(HEADER_FILE ${HEADERS})
+    get_filename_component(HEADER_DIR ${HEADER_FILE} DIRECTORY)
+    list(APPEND SRC_INCLUDE_DIRS ${HEADER_DIR})
+endforeach()
+list(REMOVE_DUPLICATES SRC_INCLUDE_DIRS)
+
 target_include_directories(VulkanRenderer PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${SRC_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/external/stb_image
     ${CMAKE_SOURCE_DIR}/external/tinyobjloader
     ${CMAKE_SOURCE_DIR}/external/tinyfiledialogs
 )
+
+# Mirror the on-disk src/ layout as Solution Explorer filters
+source_group(TREE ${CMAKE_SOURCE_DIR}/src FILES ${SOURCES} ${HEADERS})
 
 target_link_libraries(VulkanRenderer PRIVATE
     Vulkan::Vulkan

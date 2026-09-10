@@ -9,6 +9,7 @@
 
 #include "Modifiers.h"
 #include "Vertex.h"
+#include <memory>
 
 
 class DMesh
@@ -20,7 +21,7 @@ public:
 
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
-	std::vector<std::unique_ptr<MeshModifier>> modifiers;
+	std::vector<std::shared_ptr<MeshModifier>> modifiers;
 
 	void loadObj(const std::string& path);
 

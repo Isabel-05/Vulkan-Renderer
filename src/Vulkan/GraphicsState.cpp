@@ -1,7 +1,8 @@
 #include "GraphicsState.h"
 #include "BufferUtils.h"
-#include "Vertex.h"
+#include "VertexAttribs.h"
 
+#include <glm/glm.hpp>
 #include <iostream>
 #include <fstream>
 void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, VkDescriptorSetLayout& cameraDS, VkDescriptorSetLayout& materialDS)
@@ -33,8 +34,8 @@ void GraphicsPipeline::create(VulkanContext& context, VkFormat swapchainFormat, 
 	//Bindings: spacing between data and whether the data is per-vertex or per-instance
 	//Attribute descriptions: type of the attributes passed to the vertex shader, which binding to load them from and at which offset
 
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+	auto bindingDescription = VertexAttribs::getBindingDescription();
+	auto attributeDescriptions = VertexAttribs::getAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
