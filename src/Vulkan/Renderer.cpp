@@ -51,6 +51,16 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
 		basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
 		cube.materials.push_back(basemat);
+
+		GpuMaterial linemat;
+		linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
+		linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
+		cube.materials.push_back(linemat);
+
+		GpuMaterial pointmat;
+		pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
+		pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
+		cube.materials.push_back(pointmat);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -259,9 +269,9 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//	obj.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 	//}
 
-	ct += 0.00001f;
-	cube.mesh.dataMesh->vertices[0].position.y += ct;
-	cube.mesh.dataMesh->isDirty = true;
+	//ct += 0.000005f;
+	//cube.mesh.dataMesh->vertices[0].position.y += ct;
+	//cube.mesh.dataMesh->isDirty = true;
 	cube.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 
 	vkCmdEndRendering(commandBuffer);

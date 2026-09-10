@@ -12,11 +12,11 @@ void ShaderResources::cleanup(VulkanContext& context)
 	vkDestroyPipeline(context.logicalDevice, BaseShaderPl, nullptr);
 	vkDestroyPipelineLayout(context.logicalDevice, BaseShaderLayout, nullptr);
 
-	//vkDestroyPipeline(context.logicalDevice, LineShaderPl, nullptr);
-	//vkDestroyPipelineLayout(context.logicalDevice, LineShaderLayout, nullptr);
+	vkDestroyPipeline(context.logicalDevice, LineShaderPl, nullptr);
+	vkDestroyPipelineLayout(context.logicalDevice, LineShaderLayout, nullptr);
 
-	//vkDestroyPipeline(context.logicalDevice, PointShaderPl, nullptr);
-	//vkDestroyPipelineLayout(context.logicalDevice, PointShaderLayout, nullptr);
+	vkDestroyPipeline(context.logicalDevice, PointShaderPl, nullptr);
+	vkDestroyPipelineLayout(context.logicalDevice, PointShaderLayout, nullptr);
 
 	//vkDestroyPipeline(context.logicalDevice, OutlineShaderPl, nullptr);
 	//vkDestroyPipelineLayout(context.logicalDevice, OutlineShaderLayout, nullptr);
@@ -64,13 +64,35 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 {
 	MaterialUtils::createPipeline(
 		context,
-		std::string(SHADER_DIR) + "vert.spv",
-		std::string(SHADER_DIR) + "frag.spv",
+		std::string(SHADER_DIR) + "BaseVert.spv",
+		std::string(SHADER_DIR) + "BaseFrag.spv",
 		cameraDSLayout,
 		VK_POLYGON_MODE_FILL,
 		swapchainFormat,
 		BaseShaderPl,
 		BaseShaderLayout
+	);
+
+	MaterialUtils::createPipeline(
+		context,
+		std::string(SHADER_DIR) + "LineVert.spv",
+		std::string(SHADER_DIR) + "LineFrag.spv",
+		cameraDSLayout,
+		VK_POLYGON_MODE_LINE,
+		swapchainFormat,
+		LineShaderPl,
+		LineShaderLayout
+	);
+
+	MaterialUtils::createPipeline(
+		context,
+		std::string(SHADER_DIR) + "PointVert.spv",
+		std::string(SHADER_DIR) + "PointFrag.spv",
+		cameraDSLayout,
+		VK_POLYGON_MODE_POINT,
+		swapchainFormat,
+		PointShaderPl,
+		PointShaderLayout
 	);
 }
 
