@@ -20,17 +20,19 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		//Base Vulkan setup
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
-		frameData.createDescriptorSetLayouts(context);
-		graphicsPipeline.create(context, swapChain.imageFormat, frameData.cameraDSLayout, frameData.materialDSLayout);
 		commandPool.create(context);
 		swapChain.createColorResources(context, commandPool);
 		swapChain.createDepthResources(context, commandPool);
 		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
 
+		//Shader Resources
+		shaderResources.createDescriptorPool(context);
+		shaderResources.createDescriptorSetLayouts(context);
+		shaderResources.createPipelines(context, swapChain.imageFormat);
+		
 		//Rendering loop resources
 		frameData.createUniformBuffers(context);
-		frameData.createDescriptorPool(context);
-		frameData.createDescriptorSets(context);
+		frameData.createDescriptorSets(context, shaderResources.descriptorPool, shaderResources.cameraDSLayout);
 		frameData.createCommandBuffers(context, commandPool);
 		frameData.createSyncObjects(context, swapChain.imageCount);
 
@@ -44,6 +46,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		cube.init(context, commandPool, dmesh);
 		cube.name = "Cube";
+
+		GpuMaterial basemat;
+		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
+		basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
+		cube.materials.push_back(basemat);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -62,9 +69,9 @@ void VulkanRenderer::cleanup()
 
 	swapChain.cleanupSwapChain(context);
 
-	scene.cleanup(context);
+	shaderResources.cleanup(context);
 
-	graphicsPipeline.cleanup(context);
+	scene.cleanup(context);
 
 	frameData.cleanup(context, swapChain.imageCount);
 
@@ -93,7 +100,7 @@ void VulkanRenderer::drawFrame()
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	guiRenderer->newFrame(commandPool, currentFrame, scene, frameData.descriptorPool, frameData.materialDSLayout);
+	guiRenderer->newFrame(commandPool, currentFrame, scene);
 
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
@@ -231,10 +238,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
-	//bind graphics pipeline
-	//second parameter decides if its a graphics or compute pipeline
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.handle);
-
 	//set our dynamic viewport and scissor
 	VkViewport viewport{};
 	viewport.x = 0.0f;
@@ -259,7 +262,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	ct += 0.00001f;
 	cube.mesh.dataMesh->vertices[0].position.y += ct;
 	cube.mesh.dataMesh->isDirty = true;
-	cube.draw(context, commandPool, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
+	cube.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 
 	vkCmdEndRendering(commandBuffer);
 

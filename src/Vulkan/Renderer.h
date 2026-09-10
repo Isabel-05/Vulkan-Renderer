@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "Scene.h" 
 #include "ImGuiRenderer.h"
+#include "ShaderResources.h"
 
 #include "DMesh.h"
 
@@ -40,7 +41,7 @@ private:
 	Camera camera;
 	Swapchain swapChain;
 	VulkanContext context;
-	GraphicsPipeline graphicsPipeline;
+	ShaderResources shaderResources;
 	CommandPool commandPool;
 	FrameData frameData;
 

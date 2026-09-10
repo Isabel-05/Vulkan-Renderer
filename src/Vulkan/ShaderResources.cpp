@@ -1,4 +1,5 @@
 #include "ShaderResources.h"
+#include "MaterialUtils.h"
 
 
 void ShaderResources::cleanup(VulkanContext& context)
@@ -7,6 +8,18 @@ void ShaderResources::cleanup(VulkanContext& context)
 	vkDestroyDescriptorPool(context.logicalDevice, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(context.logicalDevice, cameraDSLayout, nullptr);
+
+	vkDestroyPipeline(context.logicalDevice, BaseShaderPl, nullptr);
+	vkDestroyPipelineLayout(context.logicalDevice, BaseShaderLayout, nullptr);
+
+	//vkDestroyPipeline(context.logicalDevice, LineShaderPl, nullptr);
+	//vkDestroyPipelineLayout(context.logicalDevice, LineShaderLayout, nullptr);
+
+	//vkDestroyPipeline(context.logicalDevice, PointShaderPl, nullptr);
+	//vkDestroyPipelineLayout(context.logicalDevice, PointShaderLayout, nullptr);
+
+	//vkDestroyPipeline(context.logicalDevice, OutlineShaderPl, nullptr);
+	//vkDestroyPipelineLayout(context.logicalDevice, OutlineShaderLayout, nullptr);
 }
 
 void ShaderResources::createDescriptorSetLayouts(VulkanContext& context)
@@ -47,37 +60,17 @@ void ShaderResources::createDescriptorPool(VulkanContext& context)
 	}
 }
 
-void ShaderResources::createDescriptorSets(VulkanContext& context)
+void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& swapchainFormat)
 {
-	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, cameraDSLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
-	allocInfo.pSetLayouts = layouts.data();
-
-	cameraDescriptorSets.resize(maxFramesInFlight);
-	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, cameraDescriptorSets.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	for (size_t i = 0; i < maxFramesInFlight; i++) {
-
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
-
-		VkWriteDescriptorSet descriptorWrites{};
-
-		descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites.dstSet = cameraDescriptorSets[i];
-		descriptorWrites.dstBinding = 0;
-		descriptorWrites.dstArrayElement = 0;
-		descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites.descriptorCount = 1;
-		descriptorWrites.pBufferInfo = &bufferInfo;
-
-		vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-	}
+	MaterialUtils::createPipeline(
+		context,
+		std::string(SHADER_DIR) + "vert.spv",
+		std::string(SHADER_DIR) + "frag.spv",
+		cameraDSLayout,
+		VK_POLYGON_MODE_FILL,
+		swapchainFormat,
+		BaseShaderPl,
+		BaseShaderLayout
+	);
 }
+

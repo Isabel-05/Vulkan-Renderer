@@ -29,9 +29,13 @@ struct GpuMesh
 
 struct GpuMaterial
 {
-	void init(VulkanContext& context, CommandPool& cmdPool);
+	GpuMaterial() = default;
+	~GpuMaterial() = default;
 
-	void cleanup(VulkanContext& context);
+	void init();
+
+	std::shared_ptr<VkPipeline> pipeline;
+	std::shared_ptr<VkPipelineLayout> pipelineLayout;
 };
 
 class RenderObject
@@ -50,7 +54,7 @@ public:
 	glm::mat4 getModelMatrix() const;
 
 	void checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool);
-	void draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
+	void draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS);
 
 	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
 

@@ -528,7 +528,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
 {
 	ImGui::NewFrame();
 
@@ -566,9 +566,9 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 
 	ImGui::End();
 
-	createObjectHierarchy(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
+	createObjectHierarchy(cmdPool, currentFrame, scene);
 
-	createPropertiesPanel(cmdPool, currentFrame, scene, pool, descriptorSetLayout);
+	createPropertiesPanel(cmdPool, currentFrame, scene);
 
 	
 	ImGui::EndFrame();
@@ -582,13 +582,13 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	}
 }
 
-void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
 {
 	ImGui::Begin("Object Hierarchy");
 
 	if (ImGui::Button("Add Object"))
 	{
-		scene.addObj((*context), cmdPool, baseObjectModelPath, baseObjectTexturePath, pool, descriptorSetLayout);
+		
 	}
 
 	for (int i = 0; i < scene.objList.size(); i++)
@@ -620,14 +620,13 @@ void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t current
 
 	if (ImGui::Button("remove Object") && scene.objList.size() > 0)
 	{
-		vkDeviceWaitIdle(context->logicalDevice);
-		scene.deleteObj(*context, scene.getSelectedObjId());
+
 	}
 
 	ImGui::End();
 }
 
-void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
 {
 	ImGui::Begin("Object Properties");
 
@@ -637,9 +636,9 @@ void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t current
 		return;
 	}
 
-	ImGui::DragFloat3("position", &scene.objList[scene.getSelectedObjId()].position.x, 0.01f, -3.0f, 3.0f);
-	ImGui::DragFloat3("rotation", &scene.objList[scene.getSelectedObjId()].rotation.x, 1.0f, 0.0f, 360.0f);
-	ImGui::DragFloat3("scale", &scene.objList[scene.getSelectedObjId()].scale.x, 0.005f, 0.1f, 3.0f);
+	//ImGui::DragFloat3("position", &scene.objList[scene.getSelectedObjId()].position.x, 0.01f, -3.0f, 3.0f);
+	//ImGui::DragFloat3("rotation", &scene.objList[scene.getSelectedObjId()].rotation.x, 1.0f, 0.0f, 360.0f);
+	//ImGui::DragFloat3("scale", &scene.objList[scene.getSelectedObjId()].scale.x, 0.005f, 0.1f, 3.0f);
 
 
 	if (ImGui::Button("Change Mesh Component"))

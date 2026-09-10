@@ -77,3 +77,38 @@ void FrameData::createSyncObjects(VulkanContext& context, size_t imageCount)
 		}
 	}
 }
+
+void FrameData::createDescriptorSets(VulkanContext& context, VkDescriptorPool& DsPool, VkDescriptorSetLayout& DsLayout)
+{
+	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, DsLayout);
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = DsPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
+	allocInfo.pSetLayouts = layouts.data();
+
+	cameraDescriptorSets.resize(maxFramesInFlight);
+	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, cameraDescriptorSets.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
+	}
+
+	for (size_t i = 0; i < maxFramesInFlight; i++) {
+
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		VkWriteDescriptorSet descriptorWrites{};
+
+		descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites.dstSet = cameraDescriptorSets[i];
+		descriptorWrites.dstBinding = 0;
+		descriptorWrites.dstArrayElement = 0;
+		descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites.descriptorCount = 1;
+		descriptorWrites.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
+	}
+}

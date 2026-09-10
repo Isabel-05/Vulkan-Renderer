@@ -3,15 +3,34 @@
 
 class ShaderResources
 {
-
+public:
 	void cleanup(VulkanContext &context);
+
+
+	//Descriptor Set stuff
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout cameraDSLayout;
-	std::vector<VkDescriptorSet> cameraDescriptorSets;
-
 
 	void createDescriptorSetLayouts(VulkanContext& context);
 	void createDescriptorPool(VulkanContext& context);
-	void createDescriptorSets(VulkanContext& context);
+
+	//Shaders / Pipelines
+
+	VkPipeline BaseShaderPl;
+	VkPipelineLayout BaseShaderLayout;
+
+	VkPipeline LineShaderPl;
+	VkPipelineLayout LineShaderLayout;
+
+	VkPipeline PointShaderPl;
+	VkPipelineLayout PointShaderLayout;
+
+	//TODO
+	//VkPipeline OutlineShaderPl;
+	//VkPipelineLayout OutlineShaderLayout;
+
+	void createPipelines(VulkanContext& context, const VkFormat& swapchainFormat);
+
+
 };

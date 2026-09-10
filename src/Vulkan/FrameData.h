@@ -1,5 +1,6 @@
 #pragma once
 #include "VulkanContext.h"
+#include "CommandPool.h"
 #include <glm/glm.hpp>
 
 
@@ -30,11 +31,13 @@ public:
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
 
+	std::vector<VkDescriptorSet> cameraDescriptorSets;
+
 	void createUniformBuffers(VulkanContext& context);
 
 	void createCommandBuffers(VulkanContext& context, CommandPool& cmdPool);
 	void createSyncObjects(VulkanContext& context, size_t imageCount);
 
-
+	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& DsPool, VkDescriptorSetLayout& DsLayout);
 };
 

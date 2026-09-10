@@ -30,7 +30,7 @@ void GpuMesh::cleanup(VulkanContext& context)
 //MATERIAL
 
 
-void GpuMaterial::init(VulkanContext& context, CommandPool& cmdPool)
+void GpuMaterial::init()
 {
 
 }
@@ -82,31 +82,37 @@ void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPo
 	}
 }
 
-void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
+void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
 {
 		
 	checkAndUpdateMesh(context, cmdPool);
 
-	VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	for (auto& material : materials)
+	{
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *material.pipeline);
 
-	vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-	//bind descriptor sets (for passing uniform buffer data to shaders)
-	VkDescriptorSet sets[] = { cameraDS };
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, sets, 0, nullptr);
+		vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-	//push constants (for passing model matrix to vertex shader)
-	glm::mat4 modelMatrix = getModelMatrix();
-	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+		//bind descriptor sets (for passing uniform buffer data to shaders)
+		VkDescriptorSet sets[] = { cameraDS };
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *material.pipelineLayout, 0, 1, sets, 0, nullptr);
 
-	//Draw call
-	//parameter 3: vertex count
-	//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
-	//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
-	//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
-	vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, 0, 0, 0);
+		//push constants (for passing model matrix to vertex shader)
+		glm::mat4 modelMatrix = getModelMatrix();
+		vkCmdPushConstants(commandBuffer, *material.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+
+		//Draw call
+		//parameter 3: vertex count
+		//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
+		//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
+		//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
+		vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, 0, 0, 0);
+	}
+	
 }
 
 void RenderObject::cleanup(VulkanContext& context)
