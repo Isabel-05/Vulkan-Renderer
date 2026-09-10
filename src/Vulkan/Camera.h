@@ -6,15 +6,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-enum class CameraMovement {
-    FORWARD,
-    BACKWARD,
-    LEFT,
-    RIGHT,
-    UP,
-    DOWN
-}; 
-
 class Camera
 {
 private:
@@ -31,7 +22,6 @@ private:
 	float verticalAngle;
     float radius;
 
-    float movementSpeed; 
     float mouseSensitivity; 
     float zoom;
 

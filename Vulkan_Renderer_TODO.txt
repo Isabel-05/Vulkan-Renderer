@@ -50,13 +50,8 @@ QUALITY OF LIFE:
 
 REMINDERS:
 
-- Right now the Model Matrix is being transferred to the gpu via push constant
-if push constant space becomes tight every obj will need its own ubo
-
-- Pipeline is set to CULL\_MODE\_NONE rn because of the viking model
+- descriptor pool size is hardcoded to 1000 for simplicity
 
 - mip mapping (blitting) support is not being queried atm
 
 - Sample shading is enabled (MSAA inside the Silhouette, comes at performance cost)
-
-- Maximum amount of render objects is set in framedata.h but can be increased

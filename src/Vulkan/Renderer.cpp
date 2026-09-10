@@ -41,10 +41,8 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		DMesh dmesh;
 		dmesh.init(std::string(ASSET_DIR) + "models/BlenderCube.obj");
-		DMaterial dmaterial;
-		dmaterial.init(std::vector<std::string>{ std::string(ASSET_DIR) + "textures/viking_room.png" });
 
-		cube.init(context, commandPool, dmesh, dmaterial, frameData.descriptorPool, frameData.materialDSLayout);
+		cube.init(context, commandPool, dmesh);
 		cube.name = "Cube";
 	}
 	catch (const std::runtime_error& e)
@@ -208,7 +206,8 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float bgcolor = 0.02f;
+	colorAttachment.clearValue.color = { bgcolor, bgcolor, bgcolor, 1.0f };
 
 	VkRenderingAttachmentInfo depthInfo{};
 	depthInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -260,7 +259,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	ct += 0.00001f;
 	cube.mesh.dataMesh->vertices[0].position.y += ct;
 	cube.mesh.dataMesh->isDirty = true;
-	cube.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
+	cube.draw(context, commandPool, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 
 	vkCmdEndRendering(commandBuffer);
 

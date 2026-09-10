@@ -3,7 +3,6 @@
 #include "CommandPool.h"
 
 #include "DMesh.h"
-#include "DMaterial.h"
 #include "FrameData.h"
 #include <string>
 #include <memory>
@@ -30,23 +29,8 @@ struct GpuMesh
 
 struct GpuMaterial
 {
-	std::shared_ptr<DMaterial> dataMaterial;
+	void init(VulkanContext& context, CommandPool& cmdPool);
 
-	VkImage texture;
-	VkDeviceMemory textureMemory;
-	VkImageView textureImageView;
-	VkSampler textureSampler;
-	uint32_t mipLevels;
-
-	VkDescriptorSet descriptorSet;
-
-	void createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-	void updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-
-	void initTexResources(VulkanContext& context, CommandPool& cmdPool, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-	void init(VulkanContext& context, CommandPool& cmdPool, DMaterial& dmaterial, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-
-	void cleanupTexResources(VulkanContext& context);
 	void cleanup(VulkanContext& context);
 };
 
@@ -61,15 +45,14 @@ public:
 	glm::vec3 scale;
 
 	GpuMesh mesh;
-	GpuMaterial material;
+	std::vector<GpuMaterial> materials;
 
 	glm::mat4 getModelMatrix() const;
 
-	void checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData);
-	void draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
+	void checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool);
+	void draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS);
 
-	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh, DMaterial& dmaterial,
-		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
+	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
 
 	void cleanup(VulkanContext& context);
 };

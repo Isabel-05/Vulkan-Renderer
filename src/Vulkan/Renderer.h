@@ -10,7 +10,6 @@
 #include "ImGuiRenderer.h"
 
 #include "DMesh.h"
-#include "DMaterial.h"
 
 #include <memory>
 

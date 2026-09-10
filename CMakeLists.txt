@@ -107,8 +107,8 @@ if(NOT GLSLC_EXECUTABLE)
 endif()
 
 set(SHADER_MAP
-    "shader.vert=vert.spv"
-    "shader.frag=frag.spv"
+    "BaseShader.vert=vert.spv"
+    "BaseShader.frag=frag.spv"
     "imgui_shader.vert=imgui_vert.spv"
     "imgui_shader.frag=imgui_frag.spv"
 )

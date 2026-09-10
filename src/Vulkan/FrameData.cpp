@@ -1,6 +1,6 @@
 #include "FrameData.h"
 #include <array>
-
+#include "BufferUtils.h"
 
 
 void FrameData::cleanup(VulkanContext& context, size_t imageCount)
@@ -9,13 +9,6 @@ void FrameData::cleanup(VulkanContext& context, size_t imageCount)
 		vkDestroyBuffer(context.logicalDevice, uniformBuffers[i], nullptr);
 		vkFreeMemory(context.logicalDevice, uniformBuffersMemory[i], nullptr);
 	}
-
-	//destroying descriptor pool also implicitly frees the descriptor sets allocated from it, so we dont have to free those individually
-	vkDestroyDescriptorPool(context.logicalDevice, descriptorPool, nullptr);
-
-
-	vkDestroyDescriptorSetLayout(context.logicalDevice, cameraDSLayout, nullptr);
-	vkDestroyDescriptorSetLayout(context.logicalDevice, materialDSLayout, nullptr);
 
 	for (size_t i = 0; i < imageCount; i++) {
 		vkDestroySemaphore(context.logicalDevice, renderFinishedSemaphores[i], nullptr);
@@ -40,6 +33,7 @@ void FrameData::createUniformBuffers(VulkanContext& context)
 		vkMapMemory(context.logicalDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
 	}
 }
+
 
 void FrameData::createCommandBuffers(VulkanContext& context, CommandPool& cmdPool)
 {
@@ -81,99 +75,5 @@ void FrameData::createSyncObjects(VulkanContext& context, size_t imageCount)
 		if (vkCreateFence(context.logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
-	}
-}
-
-void FrameData::createDescriptorSetLayouts(VulkanContext& context)
-{
-	//uniform buffer layout for Model view projection matrices
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-	VkDescriptorSetLayoutBinding cameraBinding = uboLayoutBinding;
-	VkDescriptorSetLayoutCreateInfo cameralayoutInfo{};
-	cameralayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	cameralayoutInfo.bindingCount = 1;
-	cameralayoutInfo.pBindings = &cameraBinding;
-
-	if (vkCreateDescriptorSetLayout(context.logicalDevice, &cameralayoutInfo, nullptr, &cameraDSLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout!");
-	}
-
-	//texture sampler descriptor set layout binding
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	VkDescriptorSetLayoutBinding materialBinding = samplerLayoutBinding;
-	VkDescriptorSetLayoutCreateInfo materiallayoutInfo{};
-	materiallayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	materiallayoutInfo.bindingCount = 1;
-	materiallayoutInfo.pBindings = &materialBinding;
-
-	if (vkCreateDescriptorSetLayout(context.logicalDevice, &materiallayoutInfo, nullptr, &materialDSLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout!");
-	}
-}
-
-void FrameData::createDescriptorPool(VulkanContext& context)
-{
-	std::array<VkDescriptorPoolSize, 2> poolSizes{};
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight) * MAX_NUMBER_OF_OBJECTS;
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight) * MAX_NUMBER_OF_OBJECTS;
-
-	VkDescriptorPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight + maxFramesInFlight * MAX_NUMBER_OF_OBJECTS);
-
-	if (vkCreateDescriptorPool(context.logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor pool!");
-	}
-
-}
-
-void FrameData::createDescriptorSets(VulkanContext& context)
-{
-	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, cameraDSLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
-	allocInfo.pSetLayouts = layouts.data();
-
-	cameraDescriptorSets.resize(maxFramesInFlight);
-	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, cameraDescriptorSets.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	for (size_t i = 0; i < maxFramesInFlight; i++) {
-
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
-
-		VkWriteDescriptorSet descriptorWrites{};
-
-		descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites.dstSet = cameraDescriptorSets[i];
-		descriptorWrites.dstBinding = 0;
-		descriptorWrites.dstArrayElement = 0;
-		descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites.descriptorCount = 1;
-		descriptorWrites.pBufferInfo = &bufferInfo;
-
-		vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
 	}
 }

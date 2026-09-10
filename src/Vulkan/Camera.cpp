@@ -8,7 +8,6 @@ Camera::Camera()
 	verticalAngle = 90.0f;
 	radius = 8.0f;
     zoom = 45.0f;
-    movementSpeed = 0.0001f;
     mouseSensitivity = 0.2f;
 }
 

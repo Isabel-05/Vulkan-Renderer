@@ -30,94 +30,19 @@ void GpuMesh::cleanup(VulkanContext& context)
 //MATERIAL
 
 
-void GpuMaterial::init(VulkanContext& context, CommandPool& cmdPool, DMaterial& dmaterial, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void GpuMaterial::init(VulkanContext& context, CommandPool& cmdPool)
 {
-	dataMaterial = std::make_shared<DMaterial>(dmaterial);
-	ImageUtils::createImageSampler(context, textureSampler);
-	initTexResources(context, cmdPool, pool, descriptorSetLayout);
-	createDescriptorSets(context, pool, descriptorSetLayout);
-}
 
-void GpuMaterial::initTexResources(VulkanContext& context, CommandPool& cmdPool, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	ImageUtils::createTextureImage(context, cmdPool, dataMaterial->texturePaths[0], texture, textureMemory, mipLevels);
-	ImageUtils::createImageView(context, texture, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImageView, mipLevels);
-}
-
-void GpuMaterial::createDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	std::vector<VkDescriptorSetLayout> layout(1, descriptorSetLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = pool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = layout.data();
-
-	if (vkAllocateDescriptorSets(context.logicalDevice, &allocInfo, &descriptorSet) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureImageView;
-	imageInfo.sampler = textureSampler;
-
-	VkWriteDescriptorSet descriptorWrites{};
-
-	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites.dstSet = descriptorSet;
-	descriptorWrites.dstBinding = 1;
-	descriptorWrites.dstArrayElement = 0;
-	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites.descriptorCount = 1;
-	descriptorWrites.pImageInfo = &imageInfo;
-	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-
-}
-
-void GpuMaterial::updateDescriptorSets(VulkanContext& context, VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureImageView;
-	imageInfo.sampler = textureSampler;
-
-	VkWriteDescriptorSet descriptorWrites{};
-
-	descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites.dstSet = descriptorSet;
-	descriptorWrites.dstBinding = 1;
-	descriptorWrites.dstArrayElement = 0;
-	descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites.descriptorCount = 1;
-	descriptorWrites.pImageInfo = &imageInfo;
-	vkUpdateDescriptorSets(context.logicalDevice, 1, &descriptorWrites, 0, nullptr);
-
-}
-
-void GpuMaterial::cleanupTexResources(VulkanContext& context)
-{
-	vkDestroyImageView(context.logicalDevice, textureImageView, nullptr);
-	vkDestroyImage(context.logicalDevice, texture, nullptr);
-	vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
-}
-
-void GpuMaterial::cleanup(VulkanContext& context)
-{
-	vkDestroySampler(context.logicalDevice, textureSampler, nullptr);
-	cleanupTexResources(context);
 }
 
 
 ////////////////
 //RENDER OBJECT
 
-void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh, DMaterial& dmaterial,
-	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
+void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
 {
 
 	mesh.init(context, cmdPool, dmesh);
-	material.init(context, cmdPool, dmaterial, pool, descriptorSetLayout);
 
 	scale = glm::vec3(1.0f, 1.0f, 1.0f);
 	position = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -134,7 +59,7 @@ glm::mat4 RenderObject::getModelMatrix() const
 	return modelMatrix;
 }
 
-void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData)
+void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool)
 {
 	if (mesh.dataMesh->isDirty)
 	{
@@ -155,20 +80,12 @@ void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPo
 		mesh.upload(context, cmdPool, mesh.evalVertices, mesh.evalIndices);
 		mesh.dataMesh->isDirty = false;
 	}
-	if (material.dataMaterial->isDirty)
-	{
-		vkDeviceWaitIdle(context.logicalDevice);
-		material.cleanupTexResources(context);
-		material.initTexResources(context, cmdPool, frameData.descriptorPool, frameData.materialDSLayout);
-		material.updateDescriptorSets(context, frameData.descriptorPool, frameData.materialDSLayout);
-		material.dataMaterial->isDirty = false;
-	}
 }
 
-void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData& frameData, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
+void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkPipelineLayout& pipelineLayout, VkDescriptorSet& cameraDS)
 {
 		
-	checkAndUpdateMesh(context, cmdPool, frameData);
+	checkAndUpdateMesh(context, cmdPool);
 
 	VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
 	VkDeviceSize offsets[] = { 0 };
@@ -177,8 +94,8 @@ void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData&
 	vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	//bind descriptor sets (for passing uniform buffer data to shaders)
-	VkDescriptorSet sets[] = { cameraDS, material.descriptorSet };
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 2, sets, 0, nullptr);
+	VkDescriptorSet sets[] = { cameraDS };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, sets, 0, nullptr);
 
 	//push constants (for passing model matrix to vertex shader)
 	glm::mat4 modelMatrix = getModelMatrix();
@@ -194,7 +111,6 @@ void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData&
 
 void RenderObject::cleanup(VulkanContext& context)
 {
-	material.cleanup(context);
 	mesh.cleanup(context);
 }
 
