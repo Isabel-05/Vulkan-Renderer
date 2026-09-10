@@ -7,15 +7,8 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-struct Vertex
-{
-	glm::vec3 position;
-	glm::vec3 color;
-	glm::vec2 texCoord;
-	glm::vec3 normal;
-
-	bool operator==(const Vertex& other) const;
-};
+#include "Modifiers.h"
+#include "Vertex.h"
 
 
 class DMesh
@@ -27,6 +20,7 @@ public:
 
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
+	std::vector<std::unique_ptr<MeshModifier>> modifiers;
 
 	void loadObj(const std::string& path);
 

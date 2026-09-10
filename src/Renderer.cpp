@@ -257,7 +257,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//	obj.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 	//}
 
-	ct += 0.000001f;
+	ct += 0.00001f;
 	cube.mesh.dataMesh->vertices[0].position.y += ct;
 	cube.mesh.dataMesh->isDirty = true;
 	cube.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);

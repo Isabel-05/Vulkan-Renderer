@@ -8,14 +8,14 @@
 void GpuMesh::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
 {
 	dataMesh = std::make_unique<DMesh>(dmesh);
-	upload(context, cmdPool);
+	upload(context, cmdPool, dataMesh->vertices, dataMesh->indices);
 }
 
-void GpuMesh::upload(VulkanContext& context, CommandPool& cmdPool)
+void GpuMesh::upload(VulkanContext& context, CommandPool& cmdPool, std::vector<Vertex> verts, std::vector<uint32_t> indices)
 {
-	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, dataMesh->vertices, vertexBuffer, vertexBufferMemory);
-	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, dataMesh->indices, indexBuffer, indexBufferMemory);
-	indexCount = static_cast<uint32_t>(dataMesh->indices.size());
+	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, verts, vertexBuffer, vertexBufferMemory);
+	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
+	indexCount = static_cast<uint32_t>(indices.size());
 }
 
 void GpuMesh::cleanup(VulkanContext& context)
@@ -140,8 +140,22 @@ void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, FrameData&
 	if (mesh.dataMesh->isDirty)
 	{
 		vkDeviceWaitIdle(context.logicalDevice);
+
+		for(auto& mod : mesh.dataMesh->modifiers)
+		{
+			mod->evaluate(mesh.dataMesh->vertices, mesh.dataMesh->indices, mesh.evalVertices, mesh.evalIndices);
+		}
+
 		mesh.cleanup(context);
-		mesh.upload(context, cmdPool);
+
+		if(mesh.dataMesh->modifiers.empty())
+		{
+			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
+		}else
+		{
+			mesh.upload(context, cmdPool, mesh.evalVertices, mesh.evalIndices);
+		}
+
 		mesh.dataMesh->isDirty = false;
 	}
 	if (material.dataMaterial->isDirty)

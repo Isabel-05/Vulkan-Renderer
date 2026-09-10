@@ -13,6 +13,9 @@ struct GpuMesh
 {
 	std::unique_ptr<DMesh> dataMesh;
 
+	std::vector<Vertex> evalVertices;
+	std::vector<uint32_t> evalIndices;
+
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
@@ -21,7 +24,7 @@ struct GpuMesh
 	uint32_t indexCount;
 
 	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
-	void upload(VulkanContext& context, CommandPool& cmdPool);
+	void upload(VulkanContext& context, CommandPool& cmdPool, std::vector<Vertex> verts, std::vector<uint32_t> indices);
 	void cleanup(VulkanContext& context);
 };
 
