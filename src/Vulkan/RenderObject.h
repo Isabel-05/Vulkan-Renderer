@@ -3,6 +3,7 @@
 #include "CommandPool.h"
 
 #include "DMesh.h"
+#include "Modifiers.h"
 #include "FrameData.h"
 #include <string>
 #include <memory>

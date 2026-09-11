@@ -2,6 +2,7 @@
 #include "BufferUtils.h"
 #include "Image.h"
 
+
 ///////////////
 //MESH
 
@@ -70,6 +71,9 @@ void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPo
 			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
 			return;
 		}
+
+		mesh.evalVertices = mesh.dataMesh->vertices;
+		mesh.evalIndices = mesh.dataMesh->indices;
 
 		for (auto& mod : mesh.dataMesh->modifiers)
 		{

@@ -30,6 +30,10 @@ public:
 	//VkPipeline OutlineShaderPl;
 	//VkPipelineLayout OutlineShaderLayout;
 
+	//TODO
+	//VkPipeline GridShaderPl;
+	//VkPipelineLayout GridShaderLayout;
+
 	void createPipelines(VulkanContext& context, const VkFormat& swapchainFormat);
 
 

@@ -43,6 +43,8 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		DMesh dmesh;
 		dmesh.init(std::string(ASSET_DIR) + "models/BlenderCube.obj");
+		FlatShadingMdf mod;
+		dmesh.modifiers.push_back(std::make_shared<FlatShadingMdf>(mod));
 
 		cube.init(context, commandPool, dmesh);
 		cube.name = "Cube";
@@ -60,6 +62,8 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		GpuMaterial pointmat;
 		pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
 		pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
+
+		
 		cube.materials.push_back(pointmat);
 	}
 	catch (const std::runtime_error& e)
@@ -223,7 +227,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	float bgcolor = 0.02f;
+	float bgcolor = 0.05f;
 	colorAttachment.clearValue.color = { bgcolor, bgcolor, bgcolor, 1.0f };
 
 	VkRenderingAttachmentInfo depthInfo{};
@@ -269,7 +273,12 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	//	obj.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
 	//}
 
-	//ct += 0.000005f;
+	ct += 0.000005f;
+	//if (ct > 0.001)
+	//{
+	//	cube.materials.pop_back();
+	//	ct = 0;
+	//}
 	//cube.mesh.dataMesh->vertices[0].position.y += ct;
 	//cube.mesh.dataMesh->isDirty = true;
 	cube.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);

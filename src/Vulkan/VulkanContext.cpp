@@ -152,6 +152,8 @@ void VulkanContext::createLogicalDevice()
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
 	deviceFeatures.sampleRateShading = VK_TRUE;
+	deviceFeatures.fillModeNonSolid = VK_TRUE;
+	deviceFeatures.wideLines = VK_TRUE;
 
 	//Create logical device
 	VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
@@ -261,7 +263,12 @@ bool VulkanContext::checkDeviceSuitable(VkPhysicalDevice device)
 	VkPhysicalDeviceFeatures supportedFeatures;
 	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-	return queueIndices.isValid() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
+	return queueIndices.isValid() &&
+		extensionsSupported &&
+		swapChainAdequate &&
+		supportedFeatures.samplerAnisotropy &&
+		supportedFeatures.fillModeNonSolid &&
+		supportedFeatures.wideLines;
 }
 
 VkSampleCountFlagBits VulkanContext::getMaxUsableMsaaSampleCount()

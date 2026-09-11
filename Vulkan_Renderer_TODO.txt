@@ -1,19 +1,10 @@
-CURRENT:
-
-- Material System
-
-- Make Editor better
-
-- Mesh / Material Representations
-
-- Render edges and vertices
-
-
 NEXT:
 
-- Selection System
+- implement Blender grey base shader 
 
-- selecting things in viewport with raycast
+- make infinite grid
+
+- selection render pass
 
 - Command System // Editing Actions
 

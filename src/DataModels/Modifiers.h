@@ -5,13 +5,16 @@
 class MeshModifier
 {
 public:
-    virtual void evaluate(std::vector<Vertex>& verts, std::vector<uint32_t>& indx);
+    virtual void evaluate(std::vector<Vertex>& verts, std::vector<uint32_t>& indx) = 0;
 
-    virtual void apply(std::vector<Vertex> &verts, std::vector<uint32_t> &indx);
+    virtual void apply(std::vector<Vertex> &verts, std::vector<uint32_t> &indx) = 0;
 
 };
 
-class FlatShadingMdf : MeshModifier
+class FlatShadingMdf : public MeshModifier
 {
+public:
+    void evaluate(std::vector<Vertex>& verts, std::vector<uint32_t>& indx) override;
 
+    void apply(std::vector<Vertex>& verts, std::vector<uint32_t>& indx) override;
 };
