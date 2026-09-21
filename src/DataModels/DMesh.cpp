@@ -14,6 +14,8 @@ DMesh::DMesh()
 void DMesh::init(std::string mPath)
 {
 	modelPath = mPath;
+    numDMesh++;
+    id = numDMesh;
 
 	loadObj(modelPath);
 }

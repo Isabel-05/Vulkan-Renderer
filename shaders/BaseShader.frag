@@ -7,7 +7,12 @@ layout(location = 2) in vec3 fragNormal;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec4 greycolor = vec4(0.3, 0.3, 0.3, 1.0);
-    vec3 lightdir = vec3(-1.0, -0.5, -1.0);
-    outColor = (dot(lightdir, fragNormal)) * greycolor;
+
+    vec3 normal = normalize(fragNormal);
+    vec3 lightdir = normalize(vec3(0.5, -0.3, -1.0));
+
+    float dotp = max(dot(lightdir, normal), 0.0);
+    vec3 color = vec3(0.45) * (0.1 + 0.75 * dotp);
+
+    outColor = vec4(color, 1.0);
 }

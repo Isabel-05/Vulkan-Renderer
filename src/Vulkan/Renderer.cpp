@@ -268,17 +268,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = swapChain.extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	//for (auto& obj : scene.objList)
-	//{
-	//	obj.draw(context, commandPool, frameData, commandBuffer, graphicsPipeline.pipelineLayout, frameData.cameraDescriptorSets[currentFrame]);
-	//}
-
-	ct += 0.000005f;
-	//if (ct > 0.001)
-	//{
-	//	cube.materials.pop_back();
-	//	ct = 0;
-	//}
+	//ct += 0.000005f;
 	//cube.mesh.dataMesh->vertices[0].position.y += ct;
 	//cube.mesh.dataMesh->isDirty = true;
 	cube.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);

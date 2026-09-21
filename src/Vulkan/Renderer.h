@@ -3,16 +3,17 @@
 #include "CommandPool.h"
 #include "FrameData.h"
 #include "Swapchain.h"
-#include "GraphicsState.h"
 #include "RenderObject.h"
 #include "Camera.h"
 #include "Scene.h" 
 #include "ImGuiRenderer.h"
 #include "ShaderResources.h"
-
 #include "DMesh.h"
+#include "SelectionState.h"
 
 #include <memory>
+
+enum class EditorState { Object, Edit};
 
 class VulkanRenderer
 {
@@ -35,6 +36,7 @@ public:
 
 
 private:
+	EditorState editorState = EditorState::Object;
 
 	std::unique_ptr<ImGuiRenderer> guiRenderer;
 
@@ -46,6 +48,7 @@ private:
 	FrameData frameData;
 
 	Scene scene;
+	Selection selection;
 
 	uint32_t currentFrame = 0;
 	bool framebufferResized = false;

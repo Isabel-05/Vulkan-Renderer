@@ -19,6 +19,7 @@ public:
 	DMesh();
 	void init(std::string mPath);
 
+	uint32_t id;
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 	std::vector<std::shared_ptr<MeshModifier>> modifiers;
@@ -29,6 +30,7 @@ public:
 private:
 
 	std::string modelPath;
+	static uint32_t numDMesh;
 };
 
 

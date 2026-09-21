@@ -10,13 +10,11 @@ class Camera
 {
 private:
 
-    // Spatial positioning and orientation vectors
-    // These form the camera's local coordinate system in world space
-    glm::vec3 position;     // Camera's location in world coordinates
-    glm::vec3 front;        // Forward direction (where camera is looking)
-    glm::vec3 up ;           // Camera's local up direction (for roll control)
-    glm::vec3 right;        // Camera's local right direction (perpendicular to front and up)
-    glm::vec3 worldUp;      // Global up vector reference (typically Y-axis)
+    glm::vec3 position;   
+    glm::vec3 front;       
+    glm::vec3 up ;        
+    glm::vec3 right;      
+    glm::vec3 worldUp;      
 
     float horizontalAngle;
 	float verticalAngle;
@@ -24,8 +22,6 @@ private:
 
     float mouseSensitivity; 
     float zoom;
-
-
 
 public:
 
@@ -36,8 +32,8 @@ public:
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix(float aspectRatio, float nearPlane = 0.1f, float farPlane = 100.0f) const;
 
-    void processMouseMovement(float xOffset, float yOffset, bool constrainPitch = true);  // Mouse-based rotation
-    void processMouseScroll(float yOffset);                              // Scroll-based zoom control
+    void processMouseMovement(float xOffset, float yOffset, bool constrainPitch = true);
+    void processMouseScroll(float yOffset);
 
     bool mousePressed = false;
 

@@ -1,14 +1,16 @@
 NEXT:
 
-- implement Blender grey base shader 
-
-- make infinite grid
+- edit/object mode
 
 - selection render pass
 
 - Command System // Editing Actions
 
+- making UI work again
+
 - making the camera better
+
+- make infinite grid
 
 
 FUTURE:
@@ -30,11 +32,7 @@ FUTURE:
 
 QUALITY OF LIFE:
 
-- grid floor
-
 - Make UI look nicer
-
-- make keyboard inputs work
 
 - add renaming with right click on object
 
