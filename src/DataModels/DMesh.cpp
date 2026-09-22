@@ -11,11 +11,10 @@ DMesh::DMesh()
 
 }
 
-void DMesh::init(std::string mPath)
+void DMesh::init(uint32_t _id, std::string mPath)
 {
 	modelPath = mPath;
-    numDMesh++;
-    id = numDMesh;
+    id = _id;
 
 	loadObj(modelPath);
 }

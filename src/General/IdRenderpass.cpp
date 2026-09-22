@@ -4,6 +4,8 @@
 
 void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent)
 {
+    extent = inExtent;
+
     MaterialUtils::createIdPipeline(
         context,
         std::string(SHADER_DIR) + "IdObjectVert.spv",
@@ -76,15 +78,4 @@ void IdRenderpass::cleanup(VulkanContext& context)
 
 void IdRenderpass::resize(VulkanContext& context, VkExtent2D inExtent)
 {
-}
-
-
-uint32_t IdRenderpass::pickObject(VulkanContext& context, CommandPool& cmdPool, uint32_t x, uint32_t y)
-{
-    return 0;
-}
-
-uint32_t IdRenderpass::pickVertex(VulkanContext& context, CommandPool& cmdPool, uint32_t x, uint32_t y)
-{
-    return 0;
 }

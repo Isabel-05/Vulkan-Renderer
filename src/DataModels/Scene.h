@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderObject.h"
+#include "DMesh.h"
 
 class Scene
 {
@@ -9,17 +9,15 @@ public:
 	Scene() = default;
 	~Scene() = default;
 
-	void cleanup(VulkanContext& context);
 
-	void addObj(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
-		VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout);
-	void deleteObj(VulkanContext& context, uint32_t index);
+	void addObj(DMesh& dmesh);
+	void removeObj(uint32_t index);
 
 	uint32_t getSelectedObjId();
 	void setSelectedObjId(uint32_t value);
 
-	std::vector<RenderObject> objList;
-
+	std::vector<DMesh> objList;
+	bool isDirty = true;
 private:
 	uint32_t selectedObjId = 0;
 };

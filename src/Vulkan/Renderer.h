@@ -10,10 +10,15 @@
 #include "ShaderResources.h"
 #include "DMesh.h"
 #include "SelectionState.h"
+#include "IdRenderpass.h"
 
 #include <memory>
 
 enum class EditorState { Object, Edit};
+
+struct PickState { bool wasClicked; uint32_t x; uint32_t y; };
+
+struct IDPushConstants { glm::mat4 model; uint32_t id; };
 
 class VulkanRenderer
 {
@@ -48,7 +53,10 @@ private:
 	FrameData frameData;
 
 	Scene scene;
+	std::vector<RenderObject> renderObjects;
+
 	Selection selection;
+	IdRenderpass idPass;
 
 	uint32_t currentFrame = 0;
 	bool framebufferResized = false;
@@ -58,7 +66,8 @@ private:
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 
-	RenderObject cube;
-	float ct = 0.0f;
+	void updateObjects();
+	uint32_t pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY);
+	PickState pick;
 };
 

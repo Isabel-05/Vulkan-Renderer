@@ -51,6 +51,9 @@ public:
 
 	bool isViewportHovered() { return viewportHovered; }
 
+	ImVec2 cursor;
+	ImVec2 avail;
+
 private:
 
 	//init stuff

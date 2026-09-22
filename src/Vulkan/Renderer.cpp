@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <algorithm>
 
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
@@ -41,30 +42,26 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 
+		idPass.createResources(context, shaderResources.cameraDSLayout, swapChain.extent);
+
 		DMesh dmesh;
-		dmesh.init(std::string(ASSET_DIR) + "models/BlenderCube.obj");
+		dmesh.init(0, std::string(ASSET_DIR) + "models/BlenderCube.obj");
 		FlatShadingMdf mod;
 		dmesh.modifiers.push_back(std::make_shared<FlatShadingMdf>(mod));
+		scene.addObj(dmesh);
+		scene.setSelectedObjId(0);
 
-		cube.init(context, commandPool, dmesh);
-		cube.name = "Cube";
+		//GpuMaterial basemat;
+		//basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
+		//basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
 
-		GpuMaterial basemat;
-		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
-		basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
-		cube.materials.push_back(basemat);
+		//GpuMaterial linemat;
+		//linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
+		//linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
 
-		GpuMaterial linemat;
-		linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
-		linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
-		cube.materials.push_back(linemat);
-
-		GpuMaterial pointmat;
-		pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
-		pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
-
-		
-		cube.materials.push_back(pointmat);
+		//GpuMaterial pointmat;
+		//pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
+		//pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -79,13 +76,16 @@ void VulkanRenderer::cleanup()
 {
 	vkDeviceWaitIdle(context.logicalDevice);
 
+	for (auto& obj : renderObjects)
+	{
+		obj.cleanup(context);
+	}
+
 	guiRenderer->cleanup();
 
 	swapChain.cleanupSwapChain(context);
 
 	shaderResources.cleanup(context);
-
-	scene.cleanup(context);
 
 	frameData.cleanup(context, swapChain.imageCount);
 
@@ -94,11 +94,15 @@ void VulkanRenderer::cleanup()
 	context.cleanup();
 }
 
-
 void VulkanRenderer::drawFrame()
 {
 	glm::mat4 viewMatrix = camera.getViewMatrix();
 	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 20.0f);
+
+	if (scene.isDirty) {
+		updateObjects();
+		scene.isDirty = false;
+	}
 
 	vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
@@ -187,6 +191,26 @@ void VulkanRenderer::drawFrame()
 		throw std::runtime_error("failed to present swap chain image!");
 	}
 
+	pick.wasClicked = true;
+	if (pick.wasClicked)
+	{
+		uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
+		if (id != 0)
+		{
+			switch (editorState)
+			{
+				case EditorState::Object:
+					scene.setSelectedObjId(id - 1);
+					break;
+				case EditorState::Edit:
+					selection.clearSelection();
+					selection.selectVertex(id);
+
+			}
+		}
+		pick.wasClicked = false;
+	}
+
 	currentFrame = (currentFrame + 1) % frameData.maxFramesInFlight;
 }
 
@@ -268,10 +292,10 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = swapChain.extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	//ct += 0.000005f;
-	//cube.mesh.dataMesh->vertices[0].position.y += ct;
-	//cube.mesh.dataMesh->isDirty = true;
-	cube.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+	for (auto& RO : renderObjects)
+	{
+		RO.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+	}
 
 	vkCmdEndRendering(commandBuffer);
 
@@ -302,6 +326,160 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMa
 	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
 
+void VulkanRenderer::updateObjects()
+{
+	renderObjects.clear();
+
+	for (auto& dmesh : scene.objList)
+	{
+		RenderObject newRO;
+		newRO.init(context, commandPool, dmesh);
+		newRO.name = dmesh.id;
+
+		GpuMaterial basemat;
+		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
+		basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
+		newRO.materials.push_back(basemat);
+
+		GpuMaterial linemat;
+		linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
+		linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
+		newRO.materials.push_back(linemat);
+
+		GpuMaterial pointmat;
+		pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
+		pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
+		newRO.materials.push_back(pointmat);
+
+		renderObjects.push_back(newRO);
+	}
+}
+
+uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY)
+{
+	vkDeviceWaitIdle(context.logicalDevice);
+
+	VkCommandBuffer cmdBuffer = commandPool.beginSingleTimeCommands(context);
+
+	ImageUtils::transitionImageLayout(context, commandPool, idPass.texture, VK_FORMAT_R32_UINT,
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+
+	VkRenderingAttachmentInfo colorAttachment{};
+	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	colorAttachment.imageView = idPass.textureView;
+	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.clearValue.color.uint32[0] = 0;
+
+	VkRenderingAttachmentInfo depthAttachment{};
+	depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	depthAttachment.imageView = swapChain.depthImageView;
+	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;   // reuse depth from the last real frame
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	VkRenderingInfo renderInfo{};
+	renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+	renderInfo.renderArea = { {0, 0}, swapChain.extent };
+	renderInfo.layerCount = 1;
+	renderInfo.colorAttachmentCount = 1;
+	renderInfo.pColorAttachments = &colorAttachment;
+	renderInfo.pDepthAttachment = &depthAttachment;
+
+	vkCmdBeginRendering(cmdBuffer, &renderInfo);
+
+	VkViewport viewport{ 0, 0, (float)swapChain.extent.width, (float)swapChain.extent.height, 0.0f, 1.0f };
+	vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+	VkRect2D scissor{ {0,0}, swapChain.extent };
+	vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+	if (editorState == EditorState::Object)
+	{
+		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idObjectPipeline);
+		for (uint32_t i = 0; i < renderObjects.size(); i++)
+		{
+			RenderObject& obj = renderObjects[i];
+			VkBuffer vbufs[] = { obj.mesh.vertexBuffer };
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vbufs, offsets);
+			vkCmdBindIndexBuffer(cmdBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idObjectPipelineLayout, 0, 1, &cameraDS, 0, nullptr);
+
+			IDPushConstants pc{ obj.getModelMatrix(), i + 1 }; // +1: reserve 0
+			vkCmdPushConstants(cmdBuffer, idPass.idObjectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
+
+			vkCmdDrawIndexed(cmdBuffer, obj.mesh.indexCount, 1, 0, 0, 0);
+		}
+	}
+	else
+	{
+		RenderObject& obj = renderObjects[scene.getSelectedObjId()];
+		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipeline);
+		VkBuffer vbufs[] = { obj.mesh.vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vbufs, offsets);
+		vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipelineLayout, 0, 1, &cameraDS, 0, nullptr);
+
+		IDPushConstants pc{ obj.getModelMatrix(), 0 };
+		vkCmdPushConstants(cmdBuffer, idPass.idEditPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
+
+		vkCmdDraw(cmdBuffer, static_cast<uint32_t>(obj.mesh.evalVertices.size()), 1, 0, 0);
+	}
+
+	vkCmdEndRendering(cmdBuffer);
+
+	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.texture, VK_FORMAT_R32_UINT,
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1);
+
+	//make sure box isnt outside of extent bounds
+	int32_t x = std::clamp((int32_t)(pixelX - idPass.pickRadius), 0, (int32_t)(swapChain.extent.width - idPass.boxSize));
+	int32_t y = std::clamp((int32_t)(pixelY - idPass.pickRadius), 0, (int32_t)(swapChain.extent.height - idPass.boxSize));
+	
+
+	VkBufferImageCopy region{};
+	region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT /*VkImageAspectFlags */, 0 /*mipLevel*/, 0 /*baseArrayLayer*/, 1 /*layerCount*/ };
+	region.imageOffset = { x, y, 0 };
+	region.imageExtent = { idPass.boxSize, idPass.boxSize, 1 }; //safe bc min is 0
+	vkCmdCopyImageToBuffer(cmdBuffer, idPass.texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, idPass.readbackBuffer, 1, &region);
+
+	commandPool.endSingleTimeCommands(context, cmdBuffer); //vkQueueWaitIdle until buffer copy has finished
+
+	uint32_t id = 0;
+	void* mapped;
+	vkMapMemory(context.logicalDevice, idPass.readbackBufferMemory, 0, idPass.boxSize * idPass.boxSize * sizeof(uint32_t), 0, &mapped);
+	
+	uint32_t* ids = reinterpret_cast<uint32_t*>(mapped);
+
+	int32_t localCursorX = (int32_t)pixelX - x;
+	int32_t localCursorY = (int32_t)pixelY - y;
+
+	int32_t closestId = INT32_MAX;
+
+	for (int32_t y = 0; y < idPass.boxSize; y++)
+	{
+		for (int32_t x = 0; x < idPass.boxSize; x++)
+		{
+			uint32_t candidate = ids[y * idPass.boxSize + x];
+			if (candidate == 0) continue;
+
+			int32_t dx = x - localCursorX;
+			int32_t dy = y - localCursorY;
+			int32_t distSq = dx * dx + dy * dy;
+
+			if (distSq < closestId)
+			{
+				closestId = distSq;
+				id = candidate;
+			}
+		}
+	}
+
+	vkUnmapMemory(context.logicalDevice, idPass.readbackBufferMemory);
+
+	return id;
+}
+
 
 /////////////
 //PUBLIC API
@@ -320,6 +498,11 @@ void VulkanRenderer::onMouseMove(double xpos, double ypos, float xoffset, float 
 {
 	camera.processMouseMovement(xoffset, yoffset);
 	guiRenderer->handleMousePos(static_cast<float>(xpos * inputScale), static_cast<float>(ypos * inputScale));
+	if (!pick.wasClicked)
+	{
+		pick.x = xpos;
+		pick.y = ypos;
+	}
 }
 
 void VulkanRenderer::onMousePressed(int button, int action, int mods)
@@ -339,6 +522,9 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
 		camera.mousePressed = true;  // Set flag to indicate left mouse button is pressed
+		pick.wasClicked = true;
+		pick.x -= guiRenderer->cursor.x + (guiRenderer->avail.x - swapChain.extent.width * 0.5);
+		pick.y -= guiRenderer->cursor.y + (guiRenderer->avail.y - swapChain.extent.height * 0.5);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{

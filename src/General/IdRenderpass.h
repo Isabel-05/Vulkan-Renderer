@@ -8,13 +8,12 @@ public:
 	void createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent);
 	void resize(VulkanContext& context, VkExtent2D inExtent);
 	void cleanup(VulkanContext& context);
+	
+	VkPipeline idEditPipeline;
+	VkPipelineLayout idEditPipelineLayout;
 
-	uint32_t pickObject(VulkanContext& context, CommandPool& cmdPool, uint32_t x, uint32_t y);
-	uint32_t pickVertex(VulkanContext& context, CommandPool& cmdPool, uint32_t x, uint32_t y);
-
-private:
-
-	const uint32_t boxSize = 8;
+	VkPipeline idObjectPipeline;
+	VkPipelineLayout idObjectPipelineLayout;
 
 	VkImage texture;
 	VkImageView textureView;
@@ -23,11 +22,8 @@ private:
 	VkBuffer readbackBuffer;
 	VkDeviceMemory readbackBufferMemory;
 
-	VkPipeline idEditPipeline;
-	VkPipelineLayout idEditPipelineLayout;
-
-	VkPipeline idObjectPipeline;
-	VkPipelineLayout idObjectPipelineLayout;
-
 	VkExtent2D extent;
+
+	const uint32_t pickRadius = 8;
+	const uint32_t boxSize = (pickRadius * 2) + 1;
 };

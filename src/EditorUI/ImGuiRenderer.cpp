@@ -556,11 +556,13 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 
 	//center image within the available region
 	ImGuiIO& io = ImGui::GetIO();
-	ImVec2 avail = ImGui::GetContentRegionAvail();
+	avail = ImGui::GetContentRegionAvail();
 	ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
-	ImVec2 cursor = ImGui::GetCursorPos();
+	cursor = ImGui::GetCursorPos();
 	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
 	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
+	//std::cout << cursor.y + (avail.y - imageSize.y) * 0.5f << std::endl;
+	//std::cout << cursor.x + (avail.x - imageSize.x) * 0.5f << std::endl;
 
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
 
@@ -591,14 +593,14 @@ void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t current
 		
 	}
 
-	for (int i = 0; i < scene.objList.size(); i++)
-	{
-		bool isSelected = (i == scene.getSelectedObjId());
-		if (ImGui::Selectable(scene.objList[i].name.c_str(), isSelected))
-		{
-			scene.setSelectedObjId(i);
-		}
-	}
+	//for (int i = 0; i < scene.objList.size(); i++)
+	//{
+	//	bool isSelected = (i == scene.getSelectedObjId());
+	//	if (ImGui::Selectable(scene.objList[i].id.c_str(), isSelected))
+	//	{
+	//		scene.setSelectedObjId(i);
+	//	}
+	//}
 
 	const char* label = "remove Object";
 	ImGuiStyle& style = ImGui::GetStyle();

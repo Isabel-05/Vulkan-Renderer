@@ -1,8 +1,12 @@
 NEXT:
 
-- edit/object mode
+- id pass resize resources
 
-- selection render pass
+- cant go above init window size bug
+
+- fix depth issue
+
+- switch between object and edit mode
 
 - Command System // Editing Actions
 

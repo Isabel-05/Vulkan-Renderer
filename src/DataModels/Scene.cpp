@@ -1,31 +1,22 @@
 #include "Scene.h"
 
-void Scene::cleanup(VulkanContext& context)
+void Scene::addObj(DMesh& dmesh)
 {
-	for(RenderObject & obj : objList)
+	objList.push_back(dmesh);
+	isDirty = true;
+}
+
+void Scene::removeObj(uint32_t index)
+{
+	for (int i=0; i<objList.size(); i++)
 	{
-		obj.cleanup(context);
+		if (objList[i].id == index)
+		{
+			objList.erase(objList.begin() + i - 1);
+		}
 	}
-}
 
-void Scene::addObj(VulkanContext& context, CommandPool& cmdPool, std::string modelPath, std::string texturePath,
-	VkDescriptorPool& pool, VkDescriptorSetLayout& descriptorSetLayout)
-{
-	//RenderObject obj;
-	//obj.init(context, cmdPool, modelPath, texturePath, pool, descriptorSetLayout);
-	//obj.name = "Object " + std::to_string(objList.size() + 1);
-	//objList.push_back(obj);
-	//selectedObjId = objList.size() - 1;
-}
-
-void Scene::deleteObj(VulkanContext& context, uint32_t index)
-{
-	objList[selectedObjId].cleanup(context);
-	objList.erase(objList.begin() + selectedObjId);
-
-	//underflow handling
-	if(objList.size() != 0)
-		selectedObjId = objList.size() - 1;
+	isDirty = true;
 }
 
 uint32_t Scene::getSelectedObjId()

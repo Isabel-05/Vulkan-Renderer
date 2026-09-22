@@ -17,7 +17,7 @@ class DMesh
 
 public:
 	DMesh();
-	void init(std::string mPath);
+	void init(uint32_t _id, std::string mPath);
 
 	uint32_t id;
 	std::vector<Vertex> vertices;
@@ -30,7 +30,7 @@ public:
 private:
 
 	std::string modelPath;
-	static uint32_t numDMesh;
+	
 };
 
 
