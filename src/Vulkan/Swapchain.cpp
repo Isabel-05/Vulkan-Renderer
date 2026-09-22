@@ -1,6 +1,12 @@
 #include "Swapchain.h"
 #include <glm/glm.hpp>
 
+void Swapchain::cleanup(VulkanContext& context)
+{
+	cleanupViewportImages(context);
+	cleanupSwapChain(context);
+}
+
 void Swapchain::createSwapchain(VulkanContext& context)
 {
 	SwapChainSupportDetails swapChainSupport = context.querySwapChainSupport(context.physicalDevice);
@@ -63,6 +69,8 @@ void Swapchain::createSwapchain(VulkanContext& context)
 	images.resize(imageCount);
 	vkGetSwapchainImagesKHR(context.logicalDevice, handle, &imageCount, images.data());
 
+	ImageUtils::createImageSampler(context, outputSampler);
+
 	//save format and extent in member
 	imageFormat = surfaceFormat.format;
 	extent = swapChainExtent;
@@ -100,18 +108,18 @@ void Swapchain::createImageViews(VulkanContext& context)
 	}
 }
 
-void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPool)
+void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPool, VkExtent2D renderExtent)
 {
-	ImageUtils::createImage(context, extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+	ImageUtils::createImage(context, renderExtent.width, renderExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, 1, context.msaaSamples);
 	ImageUtils::createImageView(context, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthImageView, 1);
 
 	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
-void Swapchain::createColorResources(VulkanContext& context, CommandPool& cmdPool)
+void Swapchain::createColorResources(VulkanContext& context, CommandPool& cmdPool, VkExtent2D renderExtent)
 {
-	ImageUtils::createImage(context, extent.width, extent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+	ImageUtils::createImage(context, renderExtent.width, renderExtent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory, 1, context.msaaSamples);
 	ImageUtils::createImageView(context, colorImage, imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, colorImageView, 1);
 
@@ -119,7 +127,37 @@ void Swapchain::createColorResources(VulkanContext& context, CommandPool& cmdPoo
 
 }
 
+void Swapchain::createOutputResources(VulkanContext& context, uint32_t maxFramesInFlight, VkExtent2D renderExtent)
+{
+	outputImages.resize(maxFramesInFlight);
+	outputImageViews.resize(maxFramesInFlight);
+	outputImageMemories.resize(maxFramesInFlight);
+
+	//NEEDS TO BE CHANGED TO WINDOW EXTENT NOT SWAPCHAIN EXTENT
+	for (int i = 0; i < maxFramesInFlight; i++)
+	{
+		ImageUtils::createImage(context, renderExtent.width, renderExtent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			outputImages[i], outputImageMemories[i], 1);
+		ImageUtils::createImageView(context, outputImages[i], imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
+
+	}
+}
+
 void Swapchain::cleanupSwapChain(VulkanContext& context)
+{
+	//Each image view needs to be deleted individually
+	for (auto imageView : imageViews) {
+		vkDestroyImageView(context.logicalDevice, imageView, nullptr);
+	}
+
+	//Images deleted automatically with the swapchain
+	vkDestroySwapchainKHR(context.logicalDevice, handle, nullptr);
+
+	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
+}
+
+void Swapchain::cleanupViewportImages(VulkanContext& context)
 {
 	vkDestroyImage(context.logicalDevice, depthImage, nullptr);
 	vkFreeMemory(context.logicalDevice, depthImageMemory, nullptr);
@@ -129,14 +167,6 @@ void Swapchain::cleanupSwapChain(VulkanContext& context)
 	vkDestroyImageView(context.logicalDevice, colorImageView, nullptr);
 	vkFreeMemory(context.logicalDevice, colorImageMemory, nullptr);
 
-	//Each image view needs to be deleted individually
-	for (auto imageView : imageViews) {
-		vkDestroyImageView(context.logicalDevice, imageView, nullptr);
-	}
-
-	//Images deleted automatically with the swapchain
-	vkDestroySwapchainKHR(context.logicalDevice, handle, nullptr);
-
 	//output resources cleanup
 	for (int i = 0; i < outputImages.size(); i++)
 	{
@@ -144,8 +174,6 @@ void Swapchain::cleanupSwapChain(VulkanContext& context)
 		vkDestroyImageView(context.logicalDevice, outputImageViews[i], nullptr);
 		vkFreeMemory(context.logicalDevice, outputImageMemories[i], nullptr);
 	}
-
-	vkDestroySampler(context.logicalDevice, outputSampler, nullptr);
 }
 
 void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, uint32_t maxFramesInFlight)
@@ -162,9 +190,6 @@ void Swapchain::recreateSwapChain(VulkanContext& context, CommandPool& cmdPool, 
 
 	createSwapchain(context);
 	createImageViews(context);
-	createColorResources(context, cmdPool);
-	createDepthResources(context, cmdPool);
-	createOutputResources(context, maxFramesInFlight);
 }
 
 
@@ -211,20 +236,4 @@ VkExtent2D Swapchain::chooseSwapExtent(VulkanContext& context, const VkSurfaceCa
 	}
 }
 
-void Swapchain::createOutputResources(VulkanContext& context, uint32_t maxFramesInFlight)
-{
-	outputImages.resize(maxFramesInFlight);
-	outputImageViews.resize(maxFramesInFlight);
-	outputImageMemories.resize(maxFramesInFlight);
 
-	//NEEDS TO BE CHANGED TO WINDOW EXTENT NOT SWAPCHAIN EXTENT
-	for (int i = 0; i < maxFramesInFlight; i++)
-	{
-		ImageUtils::createImage(context, extent.width, extent.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			outputImages[i], outputImageMemories[i], 1);
-		ImageUtils::createImageView(context, outputImages[i], imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, outputImageViews[i], 1);
-
-	}
-	ImageUtils::createImageSampler(context, outputSampler);
-}

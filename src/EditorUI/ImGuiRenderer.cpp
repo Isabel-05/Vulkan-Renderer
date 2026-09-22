@@ -561,8 +561,7 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	cursor = ImGui::GetCursorPos();
 	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
 	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
-	//std::cout << cursor.y + (avail.y - imageSize.y) * 0.5f << std::endl;
-	//std::cout << cursor.x + (avail.x - imageSize.x) * 0.5f << std::endl;
+	//std::cout << avail.x << "  " << avail.y << std::endl;
 
 	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
 

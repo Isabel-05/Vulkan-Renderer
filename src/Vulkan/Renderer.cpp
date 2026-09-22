@@ -22,9 +22,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
 		commandPool.create(context);
-		swapChain.createColorResources(context, commandPool);
-		swapChain.createDepthResources(context, commandPool);
-		swapChain.createOutputResources(context, frameData.maxFramesInFlight);
+		swapChain.createColorResources(context, commandPool, viewportExtent);
+		swapChain.createDepthResources(context, commandPool, viewportExtent);
+		swapChain.createOutputResources(context, frameData.maxFramesInFlight, viewportExtent);
 
 		//Shader Resources
 		shaderResources.createDescriptorPool(context);
@@ -83,9 +83,11 @@ void VulkanRenderer::cleanup()
 
 	guiRenderer->cleanup();
 
-	swapChain.cleanupSwapChain(context);
+	swapChain.cleanup(context);
 
 	shaderResources.cleanup(context);
+
+	idPass.cleanup(context);
 
 	frameData.cleanup(context, swapChain.imageCount);
 
@@ -96,9 +98,6 @@ void VulkanRenderer::cleanup()
 
 void VulkanRenderer::drawFrame()
 {
-	glm::mat4 viewMatrix = camera.getViewMatrix();
-	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 20.0f);
-
 	if (scene.isDirty) {
 		updateObjects();
 		scene.isDirty = false;
@@ -109,16 +108,13 @@ void VulkanRenderer::drawFrame()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(context.logicalDevice, swapChain.handle, UINT64_MAX, frameData.imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	//Check if swap chain is out of date (e.g. window resized) and needs to be recreated
-	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
-		return;
-	}
-	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-		throw std::runtime_error("failed to acquire swap chain image!");
-	}
-
 	guiRenderer->newFrame(commandPool, currentFrame, scene);
+
+	if (checkViewportResize())
+		resizeViewportResources();
+
+	glm::mat4 viewMatrix = camera.getViewMatrix();
+	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 20.0f);
 
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
@@ -181,35 +177,22 @@ void VulkanRenderer::drawFrame()
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
+
+		if (checkViewportResize())
+			resizeViewportResources();
+
 		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
 
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(static_cast<float>(swapChain.extent.width), static_cast<float>(swapChain.extent.height));
-		guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
+		
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
 	}
 
-	pick.wasClicked = true;
 	if (pick.wasClicked)
-	{
-		uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
-		if (id != 0)
-		{
-			switch (editorState)
-			{
-				case EditorState::Object:
-					scene.setSelectedObjId(id - 1);
-					break;
-				case EditorState::Edit:
-					selection.clearSelection();
-					selection.selectVertex(id);
-
-			}
-		}
-		pick.wasClicked = false;
-	}
+		updateSelection();
 
 	currentFrame = (currentFrame + 1) % frameData.maxFramesInFlight;
 }
@@ -268,7 +251,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	VkRenderingInfoKHR renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-	renderingInfo.renderArea = { {0, 0}, swapChain.extent };
+	renderingInfo.renderArea = { {0, 0}, viewportExtent };
 	renderingInfo.layerCount = 1;
 	renderingInfo.colorAttachmentCount = 1;
 	renderingInfo.pColorAttachments = &colorAttachment;
@@ -280,8 +263,8 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	VkViewport viewport{};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(swapChain.extent.width);
-	viewport.height = static_cast<float>(swapChain.extent.height);
+	viewport.width = static_cast<float>(viewportExtent.width);
+	viewport.height = static_cast<float>(viewportExtent.height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
@@ -289,7 +272,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
 	//VkExtent2D imageExtent = { guiRenderer->getViewportSize().x, guiRenderer->getViewportSize().y };
-	scissor.extent = swapChain.extent;
+	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 	for (auto& RO : renderObjects)
@@ -355,6 +338,35 @@ void VulkanRenderer::updateObjects()
 	}
 }
 
+bool VulkanRenderer::checkViewportResize()
+{
+	ImVec2 newAvail = guiRenderer->avail;
+	uint32_t newH = std::max(1, (int)newAvail.y);
+	uint32_t newW = std::max(1, (int)newAvail.x);
+
+	if ( newW != viewportExtent.width || newH != viewportExtent.height)
+	{
+		viewportExtent = { newW, newH };
+		return true;
+	}
+	return false;
+}
+
+void VulkanRenderer::resizeViewportResources()
+{
+	vkDeviceWaitIdle(context.logicalDevice);
+
+	swapChain.cleanupViewportImages(context);
+
+	swapChain.createColorResources(context, commandPool, viewportExtent);
+	swapChain.createDepthResources(context, commandPool, viewportExtent);
+	swapChain.createOutputResources(context, frameData.maxFramesInFlight, viewportExtent);
+
+	idPass.resize(context, viewportExtent);
+
+	guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
+}
+
 uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY)
 {
 	vkDeviceWaitIdle(context.logicalDevice);
@@ -381,7 +393,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 
 	VkRenderingInfo renderInfo{};
 	renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-	renderInfo.renderArea = { {0, 0}, swapChain.extent };
+	renderInfo.renderArea = { {0, 0}, viewportExtent };
 	renderInfo.layerCount = 1;
 	renderInfo.colorAttachmentCount = 1;
 	renderInfo.pColorAttachments = &colorAttachment;
@@ -389,9 +401,9 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 
 	vkCmdBeginRendering(cmdBuffer, &renderInfo);
 
-	VkViewport viewport{ 0, 0, (float)swapChain.extent.width, (float)swapChain.extent.height, 0.0f, 1.0f };
+	VkViewport viewport{ 0, 0, (float)viewportExtent.width, (float)viewportExtent.height, 0.0f, 1.0f };
 	vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-	VkRect2D scissor{ {0,0}, swapChain.extent };
+	VkRect2D scissor{ {0,0}, viewportExtent };
 	vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
 	if (editorState == EditorState::Object)
@@ -480,6 +492,25 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 	return id;
 }
 
+void VulkanRenderer::updateSelection()
+{
+	uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
+	if (id != 0)
+	{
+		switch (editorState)
+		{
+		case EditorState::Object:
+			scene.setSelectedObjId(id - 1);
+			break;
+		case EditorState::Edit:
+			selection.clearSelection();
+			selection.selectVertex(id);
+
+		}
+	}
+	pick.wasClicked = false;
+}
+
 
 /////////////
 //PUBLIC API
@@ -509,7 +540,7 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 {
 	if (!guiRenderer->isViewportHovered())
 	{
-		guiRenderer->handleMouseButton(button, action); // Pass mouse button state to ImGui for UI interaction
+		guiRenderer->handleMouseButton(button, action);
 
 		// if the mouse leaves the viewport while the mouse is pressed release the camera
 		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
@@ -521,14 +552,12 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
-		camera.mousePressed = true;  // Set flag to indicate left mouse button is pressed
+		camera.mousePressed = true;
 		pick.wasClicked = true;
-		pick.x -= guiRenderer->cursor.x + (guiRenderer->avail.x - swapChain.extent.width * 0.5);
-		pick.y -= guiRenderer->cursor.y + (guiRenderer->avail.y - swapChain.extent.height * 0.5);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{
-		camera.mousePressed = false; // Clear flag when left mouse button is released
+		camera.mousePressed = false;
 	}
 
 	//if mouse leaves window while ui is being pressed set to released

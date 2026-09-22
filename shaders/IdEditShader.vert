@@ -19,6 +19,6 @@ layout(location = 0) out flat uint outId;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * pc.model * vec4(inPosition, 1.0);
-    gl_PointSize = 12.0;              // bigger than the visible dot — generous click target, like Blender's vertex hitboxes
+    gl_PointSize = 1.0;              // bigger than the visible dot — generous click target, like Blender's vertex hitboxes
     outId = pc.idOffset + gl_VertexIndex + 1u; // +1 so 0 stays reserved for "nothing"
 }

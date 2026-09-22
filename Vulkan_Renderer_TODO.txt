@@ -1,12 +1,14 @@
 NEXT:
 
-- id pass resize resources
-
-- cant go above init window size bug
+- resize color/id attachment to avail
 
 - fix depth issue
 
+- flat shading without dupe verts
+
 - switch between object and edit mode
+
+- prepass for select outline
 
 - Command System // Editing Actions
 

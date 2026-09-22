@@ -51,6 +51,7 @@ private:
 	ShaderResources shaderResources;
 	CommandPool commandPool;
 	FrameData frameData;
+	VkExtent2D viewportExtent = { 1, 1 };
 
 	Scene scene;
 	std::vector<RenderObject> renderObjects;
@@ -67,7 +68,11 @@ private:
 	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
 
 	void updateObjects();
-	uint32_t pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY);
+	bool checkViewportResize();
+	void resizeViewportResources();
+
 	PickState pick;
+	uint32_t pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY);
+	void updateSelection();
 };
 
