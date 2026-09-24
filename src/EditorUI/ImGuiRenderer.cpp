@@ -557,13 +557,14 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	//center image within the available region
 	ImGuiIO& io = ImGui::GetIO();
 	avail = ImGui::GetContentRegionAvail();
-	ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
 	cursor = ImGui::GetCursorPos();
-	ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
-	ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
+	viewportScreenPos = ImGui::GetCursorScreenPos();
+	//ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
+	//ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
+	//ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
 	//std::cout << avail.x << "  " << avail.y << std::endl;
 
-	ImGui::Image(viewportTextureIds[currentFrame], imageSize);
+	ImGui::Image(viewportTextureIds[currentFrame], avail);
 
 	ImGui::End();
 

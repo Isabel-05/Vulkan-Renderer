@@ -34,8 +34,8 @@ public:
 	VkInstance instance;
 
 
-	VkPhysicalDevice physicalDevice;
-	VkDevice logicalDevice;
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	VkDevice logicalDevice = VK_NULL_HANDLE;
 
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;

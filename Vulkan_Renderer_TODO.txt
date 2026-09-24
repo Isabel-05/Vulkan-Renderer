@@ -1,14 +1,10 @@
 NEXT:
 
-- resize color/id attachment to avail
+- fix id pass depth issue
 
-- fix depth issue
-
-- flat shading without dupe verts
+- make new dmesh model and generate renderobjects as needed
 
 - switch between object and edit mode
-
-- prepass for select outline
 
 - Command System // Editing Actions
 
@@ -49,4 +45,4 @@ REMINDERS:
 
 - mip mapping (blitting) support is not being queried atm
 
-- Sample shading is enabled (MSAA inside the Silhouette, comes at performance cost)
+- the 17x17 box check is also being done in object mode

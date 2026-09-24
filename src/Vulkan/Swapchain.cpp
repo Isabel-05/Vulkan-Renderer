@@ -112,9 +112,19 @@ void Swapchain::createDepthResources(VulkanContext& context, CommandPool& cmdPoo
 {
 	ImageUtils::createImage(context, renderExtent.width, renderExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, 1, context.msaaSamples);
+
 	ImageUtils::createImageView(context, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthImageView, 1);
 
 	ImageUtils::transitionImageLayout(context, cmdPool, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
+
+	//Resolve Image
+	ImageUtils::createImage(context, renderExtent.width, renderExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		depthResolveImage, depthResolveMemory, 1, VK_SAMPLE_COUNT_1_BIT);
+
+	ImageUtils::createImageView(context, depthResolveImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, depthResolveView, 1);
+
+	ImageUtils::transitionImageLayout(context, cmdPool, depthResolveImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
 void Swapchain::createColorResources(VulkanContext& context, CommandPool& cmdPool, VkExtent2D renderExtent)
@@ -162,6 +172,10 @@ void Swapchain::cleanupViewportImages(VulkanContext& context)
 	vkDestroyImage(context.logicalDevice, depthImage, nullptr);
 	vkFreeMemory(context.logicalDevice, depthImageMemory, nullptr);
 	vkDestroyImageView(context.logicalDevice, depthImageView, nullptr);
+
+	vkDestroyImageView(context.logicalDevice, depthResolveView, nullptr);
+	vkDestroyImage(context.logicalDevice, depthResolveImage, nullptr);
+	vkFreeMemory(context.logicalDevice, depthResolveMemory, nullptr);
 
 	vkDestroyImage(context.logicalDevice, colorImage, nullptr);
 	vkDestroyImageView(context.logicalDevice, colorImageView, nullptr);

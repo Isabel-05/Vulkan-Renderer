@@ -114,7 +114,7 @@ void VulkanRenderer::drawFrame()
 		resizeViewportResources();
 
 	glm::mat4 viewMatrix = camera.getViewMatrix();
-	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)swapChain.extent.width / (float)swapChain.extent.height, 0.1f, 20.0f);
+	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 20.0f);
 
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
@@ -242,9 +242,9 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	depthInfo.pNext = nullptr;
 	depthInfo.imageView = swapChain.depthImageView;
 	depthInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	depthInfo.resolveMode = VK_RESOLVE_MODE_NONE;
-	depthInfo.resolveImageView = VK_NULL_HANDLE;
-	depthInfo.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthInfo.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
+	depthInfo.resolveImageView = swapChain.depthResolveView;
+	depthInfo.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	depthInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	depthInfo.clearValue.depthStencil = { 1.0f, 0 };
@@ -386,7 +386,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 
 	VkRenderingAttachmentInfo depthAttachment{};
 	depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-	depthAttachment.imageView = swapChain.depthImageView;
+	depthAttachment.imageView = swapChain.depthResolveView;
 	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;   // reuse depth from the last real frame
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -445,8 +445,8 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1);
 
 	//make sure box isnt outside of extent bounds
-	int32_t x = std::clamp((int32_t)(pixelX - idPass.pickRadius), 0, (int32_t)(swapChain.extent.width - idPass.boxSize));
-	int32_t y = std::clamp((int32_t)(pixelY - idPass.pickRadius), 0, (int32_t)(swapChain.extent.height - idPass.boxSize));
+	int32_t x = std::clamp((int32_t)(pixelX - idPass.pickRadius), 0, (int32_t)(viewportExtent.width - idPass.boxSize));
+	int32_t y = std::clamp((int32_t)(pixelY - idPass.pickRadius), 0, (int32_t)(viewportExtent.height - idPass.boxSize));
 	
 
 	VkBufferImageCopy region{};
@@ -505,8 +505,11 @@ void VulkanRenderer::updateSelection()
 		case EditorState::Edit:
 			selection.clearSelection();
 			selection.selectVertex(id);
-
 		}
+	}
+	else 
+	{
+		selection.clearSelection();
 	}
 	pick.wasClicked = false;
 }
@@ -554,6 +557,15 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 	{
 		camera.mousePressed = true;
 		pick.wasClicked = true;
+
+		float localX = ((float)pick.x - guiRenderer->viewportScreenPos.x) * inputScale;
+		float localY = ((float)pick.y - guiRenderer->viewportScreenPos.y) * inputScale;
+
+		float maxX = (float)viewportExtent.width - 1.0f;
+		float maxY = (float)viewportExtent.height - 1.0f;
+
+		pick.x = static_cast<uint32_t>(std::clamp(localX, 0.0f, maxX));
+		pick.y = static_cast<uint32_t>(std::clamp(localY, 0.0f, maxY));
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
 	{

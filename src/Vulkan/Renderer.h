@@ -41,7 +41,7 @@ public:
 
 
 private:
-	EditorState editorState = EditorState::Object;
+	EditorState editorState = EditorState::Edit;
 
 	std::unique_ptr<ImGuiRenderer> guiRenderer;
 

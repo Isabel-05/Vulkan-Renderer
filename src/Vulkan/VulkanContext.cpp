@@ -198,6 +198,10 @@ void VulkanContext::getPhysicalDevice()
 			break;
 		}
 	}
+	if (physicalDevice == VK_NULL_HANDLE)
+	{
+		throw std::runtime_error("Cant find GPUs that support Vulkan extensions");
+	}
 }
 
 bool VulkanContext::checkInstanceExtensionSupport(std::vector<const char*>* extensionsToCheck)

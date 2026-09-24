@@ -53,6 +53,7 @@ public:
 
 	ImVec2 cursor;
 	ImVec2 avail;
+	ImVec2 viewportScreenPos;
 
 private:
 

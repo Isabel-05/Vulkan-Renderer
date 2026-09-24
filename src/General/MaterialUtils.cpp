@@ -76,7 +76,6 @@ namespace MaterialUtils
 		multisampling.pSampleMask = nullptr; // Optional
 		multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
 		multisampling.alphaToOneEnable = VK_FALSE; // Optional
-		multisampling.sampleShadingEnable = VK_FALSE;
 
 		//Blending stage
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};

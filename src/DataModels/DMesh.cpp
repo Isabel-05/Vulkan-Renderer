@@ -84,7 +84,7 @@ void DMesh::loadObj(const std::string& path)
             }
 
 
-            vertex.color = { 1.0f, 1.0f, 1.0f };
+            vertex.color = { 0.0f, 0.0f, 0.0f };
 
             if (uniqueVertices.count(vertex) == 0) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());

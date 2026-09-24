@@ -18,6 +18,10 @@ public:
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
 
+	VkImage depthResolveImage;
+	VkDeviceMemory depthResolveMemory;
+	VkImageView depthResolveView;
+
 	VkFormat imageFormat;
 	VkExtent2D extent;
 	uint32_t imageCount;
