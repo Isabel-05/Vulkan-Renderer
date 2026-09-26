@@ -68,7 +68,9 @@ void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPo
 
 		if (mesh.dataMesh->modifiers.empty())
 		{
+			mesh.cleanup(context);
 			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
+			mesh.dataMesh->isDirty = false;
 			return;
 		}
 
@@ -124,3 +126,12 @@ void RenderObject::cleanup(VulkanContext& context)
 	mesh.cleanup(context);
 }
 
+void GpuBuffer::cleanup(VulkanContext& context)
+{
+	if (buffer) vkDestroyBuffer(context.logicalDevice, buffer, nullptr);
+	if (memory) vkFreeMemory(context.logicalDevice, memory, nullptr);
+	buffer = VK_NULL_HANDLE;
+	memory = VK_NULL_HANDLE;
+	capacity = 0;
+	count = 0;
+}

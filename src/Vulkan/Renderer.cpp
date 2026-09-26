@@ -19,9 +19,9 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		inputScale = abs((float)fbW / winW);
 
 		//Base Vulkan setup
+		commandPool.create(context);
 		swapChain.createSwapchain(context);
 		swapChain.createImageViews(context);
-		commandPool.create(context);
 		swapChain.createColorResources(context, commandPool, viewportExtent);
 		swapChain.createDepthResources(context, commandPool, viewportExtent);
 		swapChain.createOutputResources(context, frameData.maxFramesInFlight, viewportExtent);
@@ -44,24 +44,13 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		idPass.createResources(context, shaderResources.cameraDSLayout, swapChain.extent);
 
+		// Object for testing purposes
 		DMesh dmesh;
 		dmesh.init(0, std::string(ASSET_DIR) + "models/BlenderCube.obj");
 		FlatShadingMdf mod;
 		dmesh.modifiers.push_back(std::make_shared<FlatShadingMdf>(mod));
 		scene.addObj(dmesh);
 		scene.setSelectedObjId(0);
-
-		//GpuMaterial basemat;
-		//basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
-		//basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
-
-		//GpuMaterial linemat;
-		//linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
-		//linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
-
-		//GpuMaterial pointmat;
-		//pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
-		//pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
 	}
 	catch (const std::runtime_error& e)
 	{
@@ -110,35 +99,40 @@ void VulkanRenderer::drawFrame()
 
 	guiRenderer->newFrame(commandPool, currentFrame, scene);
 
+	// VIEWPORT RESIZE HANDLING	
 	if (checkViewportResize())
 		resizeViewportResources();
 
+	// UPDATE VIEW PROJECTION UBO	
 	glm::mat4 viewMatrix = camera.getViewMatrix();
 	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 20.0f);
-
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
+
 
 	vkResetFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame]);
 
-	vkResetCommandBuffer(frameData.commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+	// COMMAND RECORDING START	
+	vkResetCommandBuffer(frameData.commandBuffers[currentFrame], 0);
 
+	// VIEWPORT RENDERING COMMANDS
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
-	//ImGui rendering Start
-
+	// IMGUI COMMANDS
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
-	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
-	//ImGui rendering End
 
+
+	// COMMAND RECORDING END
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
 
-	//finish recording command buffer
 	if (vkEndCommandBuffer(frameData.commandBuffers[currentFrame]) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
 	}
 
+	// SUBMIT START
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -161,6 +155,7 @@ void VulkanRenderer::drawFrame()
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
 
+	// PRESENT START	
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -175,6 +170,7 @@ void VulkanRenderer::drawFrame()
 
 	result = vkQueuePresentKHR(context.presentQueue, &presentInfo);
 
+	// RESIZE HANDLING
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
 
@@ -185,12 +181,12 @@ void VulkanRenderer::drawFrame()
 
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(static_cast<float>(swapChain.extent.width), static_cast<float>(swapChain.extent.height));
-		
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
 	}
-
+	
+	// SELECTION HANDLING
 	if (pick.wasClicked)
 		updateSelection();
 
@@ -311,6 +307,10 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMa
 
 void VulkanRenderer::updateObjects()
 {
+	for (auto& obj : renderObjects)
+	{
+		obj.cleanup(context);
+	}
 	renderObjects.clear();
 
 	for (auto& dmesh : scene.objList)
@@ -365,6 +365,28 @@ void VulkanRenderer::resizeViewportResources()
 	idPass.resize(context, viewportExtent);
 
 	guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
+}
+
+void VulkanRenderer::updateSelection()
+{
+	uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
+	if (id != 0)
+	{
+		switch (editorState)
+		{
+		case EditorState::Object:
+			scene.setSelectedObjId(id - 1);
+			break;
+		case EditorState::Edit:
+			selection.clearSelection();
+			selection.selectVertex(id);
+		}
+	}
+	else
+	{
+		selection.clearSelection();
+	}
+	pick.wasClicked = false;
 }
 
 uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY)
@@ -468,6 +490,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 
 	int32_t closestId = INT32_MAX;
 
+	//pick closest id to center of picking box (aka where the input was)
 	for (int32_t y = 0; y < idPass.boxSize; y++)
 	{
 		for (int32_t x = 0; x < idPass.boxSize; x++)
@@ -492,27 +515,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 	return id;
 }
 
-void VulkanRenderer::updateSelection()
-{
-	uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
-	if (id != 0)
-	{
-		switch (editorState)
-		{
-		case EditorState::Object:
-			scene.setSelectedObjId(id - 1);
-			break;
-		case EditorState::Edit:
-			selection.clearSelection();
-			selection.selectVertex(id);
-		}
-	}
-	else 
-	{
-		selection.clearSelection();
-	}
-	pick.wasClicked = false;
-}
+
 
 
 /////////////
@@ -558,12 +561,13 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 		camera.mousePressed = true;
 		pick.wasClicked = true;
 
+		//convert from glfw global input to viewport/image coordinates
 		float localX = ((float)pick.x - guiRenderer->viewportScreenPos.x) * inputScale;
 		float localY = ((float)pick.y - guiRenderer->viewportScreenPos.y) * inputScale;
 
+		//make sure inputs are in bounds of the viewport
 		float maxX = (float)viewportExtent.width - 1.0f;
 		float maxY = (float)viewportExtent.height - 1.0f;
-
 		pick.x = static_cast<uint32_t>(std::clamp(localX, 0.0f, maxX));
 		pick.y = static_cast<uint32_t>(std::clamp(localY, 0.0f, maxY));
 	}

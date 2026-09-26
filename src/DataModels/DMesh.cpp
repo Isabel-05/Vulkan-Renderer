@@ -1,97 +1,115 @@
 #include "DMesh.h"
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 #include <unordered_map>
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
 
-DMesh::DMesh()
-{
-
-}
 
 void DMesh::init(uint32_t _id, std::string mPath)
 {
-	modelPath = mPath;
     id = _id;
-
-	loadObj(modelPath);
-}
-
-namespace std {
-    template<typename T>
-    void hashCombine(size_t& seed, const T& v) {
-        std::hash<T> hasher;
-        seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-
-    template<>
-    struct hash<Vertex> {
-        size_t operator()(Vertex const& vertex) const {
-            size_t seed = 0;
-            hashCombine(seed, vertex.position);
-            hashCombine(seed, vertex.color);
-            hashCombine(seed, vertex.normal);
-            hashCombine(seed, vertex.texCoord);
-            return seed;
-        }
-    };
+	loadObj(mPath);
 }
 
 void DMesh::loadObj(const std::string& path)
 {
-	vertices.clear();
-	indices.clear();
+	positions.clear();
+    vertSelected.clear();
+	edges.clear();
+	faceOffsets.clear();
+	sharpFaces.clear();
+	cornerVerts.clear();
+	cornerUv.clear();
 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string err;
-	std::string warn;
 
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str())) {
+    //triangulate false
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str()), nullptr, false) {
 		throw std::runtime_error(err);
 	}
 
-	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+	//copy vertex positions
+    positions.reserve(attrib.vertices.size() / 3);
+    for (size_t i = 0; i < attrib.vertices.size(); i += 3)
+        positions.push_back({ attrib.vertices[i], attrib.vertices[i + 1], attrib.vertices[i + 2] });
 
+
+	//fill corners and faceOffsets (and build edges from that)
+    faceOffsets.push_back(0);
 	for (const auto& shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
-			Vertex vertex{};
+        size_t idxOffset = 0;
 
-            vertex.position = {
-                attrib.vertices[3 * index.vertex_index + 0],
-                attrib.vertices[3 * index.vertex_index + 1],
-                attrib.vertices[3 * index.vertex_index + 2]
-            };
+        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++)
+        {
+			int fv = shape.mesh.num_face_vertices[f];
+			for (int c = 0; c < fv; c++)
+			{
+				const auto& idx = shape.mesh.indices[idxOffset + c];
+				cornerVerts.push_back(idx.vertex_index);
 
-            if (index.texcoord_index >= 0)
-            {
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-            }
+				glm::vec2 uv(0.0f);
+				if (idx.texcoord_index >= 0)
+				{
+					uv = { attrib.texcoords[2 * idx.texcoord_index + 0],
+						1.0f - attrib.texcoords[2 * idx.texcoord_index + 1] };
+				}
+				cornerUv.push_back(uv);
+			}
+			faceOffsets.push_back((uint32_t)cornerVerts.size());
+			idxOffset += fv;
+		}
+	}
 
-            if (index.normal_index >= 0)
-            {
-                vertex.normal = {
-                    attrib.normals[3 * size_t(index.normal_index) + 0],
-                    attrib.normals[3 * size_t(index.normal_index) + 1],
-                    attrib.normals[3 * size_t(index.normal_index) + 2]
-                };
-            }
+	sharpFaces.assign(getFaceCount(), 0);
+	vertSelected.assign(positions.size(), 0);
 
+	buildEdgesFromFaces();
+}
 
-            vertex.color = { 0.0f, 0.0f, 0.0f };
+void DMesh::buildEdgesFromFaces()
+{
+	edges.clear();
+	cornerEdges.assign(cornerVerts.size(), 0);
 
-            if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                vertices.push_back(vertex);
-            }
+	std::unordered_map<uint64_t, uint32_t> edgeLookup;
+	edgeLookup.reserve(cornerVerts.size());
 
-			indices.push_back(uniqueVertices[vertex]);
+	auto keyOf = [](uint32_t a, uint32_t b) -> uint64_t
+		{
+			uint32_t lo = std::min(a, b), hi = std::max(a, b);
+			return (uint64_t(lo) << 32) | uint64_t(hi);
+		};
+
+	for (uint32_t f = 0; f < getFaceCount(); f++)
+	{
+		uint32_t start = faceOffsets[f];
+		uint32_t n = getFaceSize(f);
+
+		for (uint32_t i = 0; i < n; i++)
+		{
+			uint32_t c0 = start + i;
+			uint32_t c1 = start + (i + 1) % n;
+			uint32_t v0 = cornerVerts[c0];
+			uint32_t v1 = cornerVerts[c1];
+
+			uint64_t key = keyOf(v0, v1);
+			auto it = edgeLookup.find(key);
+			uint32_t edgeIdx;
+			if (it == edgeLookup.end())
+			{
+				edgeIdx = (uint32_t)edges.size();
+				edges.push_back({ std::min(v0, v1), std::max(v0, v1) });
+				edgeLookup.emplace(key, edgeIdx);
+			}
+			else
+			{
+				edgeIdx = it->second;
+			}
+			cornerEdges[c0] = edgeIdx;
 		}
 	}
 }

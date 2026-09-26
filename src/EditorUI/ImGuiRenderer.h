@@ -69,7 +69,7 @@ private:
 	//UI Window Creation
 	void createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene);
 
-	void createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene);
+	void createObjectList(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene);
 
 	std::vector<VkDescriptorSet> viewportDescriptorSets;
 	std::vector<ImTextureID> viewportTextureIds;

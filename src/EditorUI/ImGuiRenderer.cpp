@@ -532,6 +532,19 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 {
 	ImGui::NewFrame();
 
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("File")) {
+			if (ImGui::MenuItem("Import")) {
+				// Handle Quit
+			}
+			if (ImGui::MenuItem("Export as OBJ", "Ctrl+S")) {
+				// Handle Quit
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+
 	ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 	ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -559,16 +572,12 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	avail = ImGui::GetContentRegionAvail();
 	cursor = ImGui::GetCursorPos();
 	viewportScreenPos = ImGui::GetCursorScreenPos();
-	//ImVec2 imageSize = ImVec2(io.DisplaySize.x, io.DisplaySize.y);
-	//ImGui::SetCursorPosX(cursor.x + (avail.x - imageSize.x) * 0.5f);
-	//ImGui::SetCursorPosY(cursor.y + (avail.y - imageSize.y) * 0.5f);
-	//std::cout << avail.x << "  " << avail.y << std::endl;
 
 	ImGui::Image(viewportTextureIds[currentFrame], avail);
 
 	ImGui::End();
 
-	createObjectHierarchy(cmdPool, currentFrame, scene);
+	createObjectList(cmdPool, currentFrame, scene);
 
 	createPropertiesPanel(cmdPool, currentFrame, scene);
 
@@ -584,106 +593,16 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	}
 }
 
-void ImGuiRenderer::createObjectHierarchy(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
+void ImGuiRenderer::createObjectList(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
 {
-	ImGui::Begin("Object Hierarchy");
-
-	if (ImGui::Button("Add Object"))
-	{
-		
-	}
-
-	//for (int i = 0; i < scene.objList.size(); i++)
-	//{
-	//	bool isSelected = (i == scene.getSelectedObjId());
-	//	if (ImGui::Selectable(scene.objList[i].id.c_str(), isSelected))
-	//	{
-	//		scene.setSelectedObjId(i);
-	//	}
-	//}
-
-	const char* label = "remove Object";
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	//Calculate button size (or pass a fixed size like ImVec2(100, 30))
-	ImVec2 labelSize = ImGui::CalcTextSize(label);
-	ImVec2 buttonSize = ImVec2(
-		labelSize.x + style.FramePadding.x * 2.0f,
-		labelSize.y + style.FramePadding.y * 2.0f
-	);
-
-	ImVec2 windowSize = ImGui::GetWindowSize();
-
-	//Position cursor relative to top-left of the window
-	ImGui::SetCursorPos(ImVec2(
-		windowSize.x - buttonSize.x - style.WindowPadding.x,
-		windowSize.y - buttonSize.y - style.WindowPadding.y
-	));
-
-	if (ImGui::Button("remove Object") && scene.objList.size() > 0)
-	{
-
-	}
+	ImGui::Begin("Objects");
 
 	ImGui::End();
 }
 
 void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
 {
-	ImGui::Begin("Object Properties");
-
-	if (scene.objList.size() == 0)
-	{
-		ImGui::End();
-		return;
-	}
-
-	//ImGui::DragFloat3("position", &scene.objList[scene.getSelectedObjId()].position.x, 0.01f, -3.0f, 3.0f);
-	//ImGui::DragFloat3("rotation", &scene.objList[scene.getSelectedObjId()].rotation.x, 1.0f, 0.0f, 360.0f);
-	//ImGui::DragFloat3("scale", &scene.objList[scene.getSelectedObjId()].scale.x, 0.005f, 0.1f, 3.0f);
-
-
-	if (ImGui::Button("Change Mesh Component"))
-	{
-		const char* filters[1] = { "*.obj" };
-
-		const char* filePath = tinyfd_openFileDialog(
-			"Select Mesh File", // Dialog title
-			"",                  // Default path or filename
-			1,                   // Number of filter patterns
-			filters,             // Filter patterns array
-			"Mesh Files",       // Single filter description
-			0                    // Allow multiple select (0 = No, 1 = Yes)
-		);
-
-		if (!filePath || filePath[0] == '\0') {
-			ImGui::End();
-			return;
-		}
-
-		
-	}
-
-	if (ImGui::Button("Change Texture Component"))
-	{
-		const char* filters[1] = { "*.png" };
-
-		const char* filePath = tinyfd_openFileDialog(
-			"Select Texture File", // Dialog title
-			"",                  // Default path or filename
-			1,                   // Number of filter patterns
-			filters,             // Filter patterns array
-			"Texture Files",       // Single filter description
-			0                    // Allow multiple select (0 = No, 1 = Yes)
-		);
-
-		if (!filePath || filePath[0] == '\0') {
-			ImGui::End();
-			return;
-		}
-		
-
-	}
+	ImGui::Begin("Properties");
 
 	ImGui::End();
 }
@@ -701,14 +620,14 @@ void ImGuiRenderer::setupDockspace(ImGuiID dockspace_id)
 
 		ImGuiID dock_main = dockspace_id;
 
-		ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, 0.30f, nullptr, &dock_main);
+		ImGuiID dock_right = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Right, 0.20f, nullptr, &dock_main);
 
 		// Now split the left column top/bottom for the stacked pair
-		ImGuiID dock_left_top, dock_left_bottom;
-		dock_left_top = ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up, 0.5f, nullptr, &dock_left_bottom);
+		ImGuiID dock_right_top, dock_right_bottom;
+		dock_right_top = ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Up, 0.5f, nullptr, &dock_right_bottom);
 
-		ImGui::DockBuilderDockWindow("Object Hierarchy", dock_left_top);
-		ImGui::DockBuilderDockWindow("Object Properties", dock_left_bottom);
+		ImGui::DockBuilderDockWindow("Objects", dock_right_top);
+		ImGui::DockBuilderDockWindow("Properties", dock_right_bottom);
 		ImGui::DockBuilderDockWindow("Viewport", dock_main);
 
 		ImGui::DockBuilderFinish(dockspace_id);
