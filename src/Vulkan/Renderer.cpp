@@ -47,8 +47,6 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		// Object for testing purposes
 		DMesh dmesh;
 		dmesh.init(0, std::string(ASSET_DIR) + "models/BlenderCube.obj");
-		FlatShadingMdf mod;
-		dmesh.modifiers.push_back(std::make_shared<FlatShadingMdf>(mod));
 		scene.addObj(dmesh);
 		scene.setSelectedObjId(0);
 	}
@@ -273,7 +271,15 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	for (auto& RO : renderObjects)
 	{
-		RO.draw(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+		RO.sync(context, commandPool, editorState==EditorState::Edit);
+		RO.drawSurface(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+		
+		if (editorState == EditorState::Edit) //todo: and object is selected
+		{
+			RO.gpuCache.dataMesh->edges[0];
+			RO.drawEdges(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
+		}
 	}
 
 	vkCmdEndRendering(commandBuffer);
@@ -322,17 +328,17 @@ void VulkanRenderer::updateObjects()
 		GpuMaterial basemat;
 		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
 		basemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.BaseShaderLayout);
-		newRO.materials.push_back(basemat);
+		newRO.surfaceMaterial = basemat;
 
-		GpuMaterial linemat;
-		linemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
-		linemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
-		newRO.materials.push_back(linemat);
+		GpuMaterial edgemat;
+		edgemat.pipeline = std::make_shared<VkPipeline>(shaderResources.LineShaderPl);
+		edgemat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.LineShaderLayout);
+		newRO.edgeMaterial = edgemat;
 
 		GpuMaterial pointmat;
 		pointmat.pipeline = std::make_shared<VkPipeline>(shaderResources.PointShaderPl);
 		pointmat.pipelineLayout = std::make_shared<VkPipelineLayout>(shaderResources.PointShaderLayout);
-		newRO.materials.push_back(pointmat);
+		newRO.pointMaterial = pointmat;
 
 		renderObjects.push_back(newRO);
 	}
@@ -389,6 +395,7 @@ void VulkanRenderer::updateSelection()
 	pick.wasClicked = false;
 }
 
+
 uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY)
 {
 	vkDeviceWaitIdle(context.logicalDevice);
@@ -434,23 +441,23 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 		for (uint32_t i = 0; i < renderObjects.size(); i++)
 		{
 			RenderObject& obj = renderObjects[i];
-			VkBuffer vbufs[] = { obj.mesh.vertexBuffer };
+			VkBuffer vbufs[] = { obj.gpuCache.surfaceVertBuffer.buffer };
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vbufs, offsets);
-			vkCmdBindIndexBuffer(cmdBuffer, obj.mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(cmdBuffer, obj.gpuCache.surfaceIdxBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idObjectPipelineLayout, 0, 1, &cameraDS, 0, nullptr);
 
 			IDPushConstants pc{ obj.getModelMatrix(), i + 1 }; // +1: reserve 0
 			vkCmdPushConstants(cmdBuffer, idPass.idObjectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
 
-			vkCmdDrawIndexed(cmdBuffer, obj.mesh.indexCount, 1, 0, 0, 0);
+			vkCmdDrawIndexed(cmdBuffer, obj.gpuCache.surfaceIdxBuffer.count, 1, 0, 0, 0);
 		}
 	}
 	else
 	{
 		RenderObject& obj = renderObjects[scene.getSelectedObjId()];
 		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipeline);
-		VkBuffer vbufs[] = { obj.mesh.vertexBuffer };
+		VkBuffer vbufs[] = { obj.gpuCache.pointBuffer.buffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vbufs, offsets);
 		vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipelineLayout, 0, 1, &cameraDS, 0, nullptr);
@@ -458,7 +465,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 		IDPushConstants pc{ obj.getModelMatrix(), 0 };
 		vkCmdPushConstants(cmdBuffer, idPass.idEditPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
 
-		vkCmdDraw(cmdBuffer, static_cast<uint32_t>(obj.mesh.evalVertices.size()), 1, 0, 0);
+		vkCmdDraw(cmdBuffer, obj.gpuCache.pointBuffer.count, 1, 0, 0);
 	}
 
 	vkCmdEndRendering(cmdBuffer);

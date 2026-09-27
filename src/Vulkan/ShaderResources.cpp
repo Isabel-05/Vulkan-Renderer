@@ -1,5 +1,6 @@
 #include "ShaderResources.h"
 #include "MaterialUtils.h"
+#include "GpuMeshCache.h"
 
 
 void ShaderResources::cleanup(VulkanContext& context)
@@ -67,8 +68,15 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		std::string(SHADER_DIR) + "BaseVert.spv",
 		std::string(SHADER_DIR) + "BaseFrag.spv",
 		cameraDSLayout,
+		VK_TRUE,
+		VK_TRUE,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		VK_POLYGON_MODE_FILL,
 		swapchainFormat,
+		64, // glm::mat4
+		context.msaaSamples,
+		SurfaceVertexAttribs::getBindingDescription(),
+		SurfaceVertexAttribs::getAttributeDescriptions(),
 		BaseShaderPl,
 		BaseShaderLayout
 	);
@@ -78,8 +86,15 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		std::string(SHADER_DIR) + "LineVert.spv",
 		std::string(SHADER_DIR) + "LineFrag.spv",
 		cameraDSLayout,
+		VK_TRUE,
+		VK_TRUE,
+		VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
 		VK_POLYGON_MODE_LINE,
 		swapchainFormat,
+		64,
+		context.msaaSamples,
+		PointVertexAttribs::getBindingDescription(),
+		PointVertexAttribs::getAttributeDescriptions(),
 		LineShaderPl,
 		LineShaderLayout
 	);
@@ -89,8 +104,15 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		std::string(SHADER_DIR) + "PointVert.spv",
 		std::string(SHADER_DIR) + "PointFrag.spv",
 		cameraDSLayout,
+		VK_TRUE,
+		VK_TRUE,
+		VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
 		VK_POLYGON_MODE_POINT,
 		swapchainFormat,
+		64,
+		context.msaaSamples,
+		PointVertexAttribs::getBindingDescription(),
+		PointVertexAttribs::getAttributeDescriptions(),
 		PointShaderPl,
 		PointShaderLayout
 	);

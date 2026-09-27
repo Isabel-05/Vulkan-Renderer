@@ -3,9 +3,8 @@
 
 namespace MaterialUtils
 {
-	void createPipeline(VulkanContext& context, std::string vertShaderPath, std::string fragShaderPath, VkDescriptorSetLayout cameraDSLayout,
-		VkPolygonMode polygonMode, const VkFormat& swapchainFormat, VkPipeline& outPipeline, VkPipelineLayout& outPipelineLayout);
-
-	void createIdPipeline(VulkanContext& context, std::string vertShaderPath, std::string fragShaderPath, VkDescriptorSetLayout cameraDSLayout, 
-		VkPrimitiveTopology topology, VkPolygonMode polygonMode, VkPipeline& outPipeline, VkPipelineLayout& outPipelineLayout);
+	void createPipeline(VulkanContext& context, std::string vertShaderPath, std::string fragShaderPath, VkDescriptorSetLayout cameraDSLayout, VkBool32 blendEnable,
+		VkBool32 depthWriteEnable, VkPrimitiveTopology topology, VkPolygonMode polygonMode, const VkFormat& outputFormat, uint32_t pushconstantSize, VkSampleCountFlagBits samples,
+		VkVertexInputBindingDescription bindingDesc, const std::vector<VkVertexInputAttributeDescription>& attributeDescs,
+		VkPipeline& outPipeline, VkPipelineLayout& outPipelineLayout);
 }

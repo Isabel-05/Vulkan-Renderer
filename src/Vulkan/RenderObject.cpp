@@ -1,49 +1,8 @@
 #include "RenderObject.h"
-#include "BufferUtils.h"
-#include "Image.h"
-
-
-///////////////
-//MESH
-
-void GpuMesh::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
-{
-	dataMesh = std::make_shared<DMesh>(dmesh);
-	upload(context, cmdPool, dataMesh->vertices, dataMesh->indices);
-}
-
-void GpuMesh::upload(VulkanContext& context, CommandPool& cmdPool, std::vector<Vertex> verts, std::vector<uint32_t> indices)
-{
-	BufferUtils::uploadBufferToGpu<Vertex>(context, cmdPool, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, verts, vertexBuffer, vertexBufferMemory);
-	BufferUtils::uploadBufferToGpu<uint32_t>(context, cmdPool, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indices, indexBuffer, indexBufferMemory);
-	indexCount = static_cast<uint32_t>(indices.size());
-}
-
-void GpuMesh::cleanup(VulkanContext& context)
-{
-	vkDestroyBuffer(context.logicalDevice, indexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, indexBufferMemory, nullptr);
-	vkDestroyBuffer(context.logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(context.logicalDevice, vertexBufferMemory, nullptr);
-}
-
-/////////////////
-//MATERIAL
-
-
-void GpuMaterial::init()
-{
-
-}
-
-
-////////////////
-//RENDER OBJECT
 
 void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
 {
-
-	mesh.init(context, cmdPool, dmesh);
+	gpuCache.init(context, cmdPool, dmesh);
 
 	scale = glm::vec3(1.0f, 1.0f, 1.0f);
 	position = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -60,78 +19,73 @@ glm::mat4 RenderObject::getModelMatrix() const
 	return modelMatrix;
 }
 
-void RenderObject::checkAndUpdateMesh(VulkanContext& context, CommandPool& cmdPool)
+void RenderObject::sync(VulkanContext& context, CommandPool& cmdPool, bool wantOverlay)
 {
-	if (mesh.dataMesh->isDirty)
-	{
-		vkDeviceWaitIdle(context.logicalDevice);
-
-		if (mesh.dataMesh->modifiers.empty())
-		{
-			mesh.cleanup(context);
-			mesh.upload(context, cmdPool, mesh.dataMesh->vertices, mesh.dataMesh->indices);
-			mesh.dataMesh->isDirty = false;
-			return;
-		}
-
-		mesh.evalVertices = mesh.dataMesh->vertices;
-		mesh.evalIndices = mesh.dataMesh->indices;
-
-		for (auto& mod : mesh.dataMesh->modifiers)
-		{
-			mod->evaluate(mesh.evalVertices, mesh.evalIndices);
-		}
-
-		mesh.cleanup(context);
-		mesh.upload(context, cmdPool, mesh.evalVertices, mesh.evalIndices);
-		mesh.dataMesh->isDirty = false;
-	}
+	gpuCache.sync(context, cmdPool, wantOverlay);
 }
 
-void RenderObject::draw(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
+void RenderObject::drawSurface(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
 {
-		
-	checkAndUpdateMesh(context, cmdPool);
+	if (gpuCache.surfaceIdxBuffer.count == 0) return;
 
-	for (auto& material : materials)
-	{
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *material.pipeline);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *surfaceMaterial.pipeline);
 
-		VkBuffer vertexBuffers[] = { mesh.vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	VkBuffer vertexBuffers[] = { gpuCache.surfaceVertBuffer.buffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, gpuCache.surfaceIdxBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	VkDescriptorSet sets[] = { cameraDS };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *surfaceMaterial.pipelineLayout, 0, 1, sets, 0, nullptr);
 
-		//bind descriptor sets (for passing uniform buffer data to shaders)
-		VkDescriptorSet sets[] = { cameraDS };
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *material.pipelineLayout, 0, 1, sets, 0, nullptr);
+	glm::mat4 modelMatrix = getModelMatrix();
+	vkCmdPushConstants(commandBuffer, *surfaceMaterial.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
 
-		//push constants (for passing model matrix to vertex shader)
-		glm::mat4 modelMatrix = getModelMatrix();
-		vkCmdPushConstants(commandBuffer, *material.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+	vkCmdDrawIndexed(commandBuffer, gpuCache.surfaceIdxBuffer.count, 1, 0, 0, 0);
+}
 
-		//Draw call
-		//parameter 3: vertex count
-		//parameter 4: instanceCount: Used for instanced rendering, use 1 if you're not doing that.
-		//parameter 5: firstVertex: Used as an offset into the vertex buffer, defines the lowest value of gl_VertexIndex.
-		//parameter 6: firstInstance: Used as an offset for instanced rendering, defines the lowest value of gl_InstanceIndex.
-		vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, 0, 0, 0);
-	}
-	
+void RenderObject::drawEdges(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
+{
+	if (gpuCache.edgeIdxBuffer.count == 0 || !edgeMaterial.pipeline) return;
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *edgeMaterial.pipeline);
+
+	VkBuffer vertexBuffers[] = { gpuCache.pointBuffer.buffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, gpuCache.edgeIdxBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	VkDescriptorSet sets[] = { cameraDS };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *edgeMaterial.pipelineLayout, 0, 1, sets, 0, nullptr);
+
+	glm::mat4 modelMatrix = getModelMatrix();
+	vkCmdPushConstants(commandBuffer, *edgeMaterial.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+
+	vkCmdDrawIndexed(commandBuffer, gpuCache.edgeIdxBuffer.count, 1, 0, 0, 0);
+}
+
+void RenderObject::drawPoints(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
+{
+	if (gpuCache.pointBuffer.count == 0 || !pointMaterial.pipeline) return;
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *pointMaterial.pipeline);
+
+	VkBuffer vertexBuffers[] = { gpuCache.pointBuffer.buffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	VkDescriptorSet sets[] = { cameraDS };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *pointMaterial.pipelineLayout, 0, 1, sets, 0, nullptr);
+
+	glm::mat4 modelMatrix = getModelMatrix();
+	vkCmdPushConstants(commandBuffer, *pointMaterial.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+
+	vkCmdDraw(commandBuffer, gpuCache.pointBuffer.count, 1, 0, 0);
 }
 
 void RenderObject::cleanup(VulkanContext& context)
 {
-	mesh.cleanup(context);
+	gpuCache.cleanup(context);
 }
 
-void GpuBuffer::cleanup(VulkanContext& context)
-{
-	if (buffer) vkDestroyBuffer(context.logicalDevice, buffer, nullptr);
-	if (memory) vkFreeMemory(context.logicalDevice, memory, nullptr);
-	buffer = VK_NULL_HANDLE;
-	memory = VK_NULL_HANDLE;
-	capacity = 0;
-	count = 0;
-}
+

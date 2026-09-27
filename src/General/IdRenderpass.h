@@ -1,6 +1,13 @@
 #pragma once
 #include "VulkanContext.h"
 #include "CommandPool.h"
+#include <glm/glm.hpp>
+
+struct IdPushConstants
+{
+	glm::mat4 model;
+	uint32_t id;
+};
 
 class IdRenderpass 
 {

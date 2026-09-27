@@ -64,7 +64,7 @@ void DMesh::loadObj(const std::string& path)
 		}
 	}
 
-	sharpFaces.assign(getFaceCount(), 0);
+	sharpFaces.assign(getFaceCount(), 1);
 	vertSelected.assign(positions.size(), 0);
 
 	buildEdgesFromFaces();

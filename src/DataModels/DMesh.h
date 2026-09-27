@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "Modifiers.h"
-
 
 struct MeshVersion
 {
@@ -30,14 +28,13 @@ struct MeshVersion
 
 class DMesh
 {
-
 public:
 	DMesh() = default;
 	void init(uint32_t _id, std::string mPath);
 	void loadObj(const std::string& path);
 
 	uint32_t id;
-	MeshVersion version = {};
+	MeshVersion version; //all flags init as 1 / gpu mesh inits as 0
 	
 	//mesh data
 	std::vector<glm::vec3> positions;
@@ -50,12 +47,7 @@ public:
 
 	std::vector<uint32_t> cornerVerts;
 	std::vector<glm::vec2> cornerUv;
-	//CHECK IF NEEDED
-	std::vector<uint32_t>  cornerEdges;
-
-	//modifier stack
-	std::vector<MeshModifier> modifiers;
-
+	std::vector<uint32_t>  cornerEdges; //not needed/used yet but might be useful in the future
 
 	////////////////////
 	// HELPER FUNCTIONS

@@ -1,18 +1,36 @@
 NEXT:
 
-- fix id pass depth issue
+- make sure selection maps to dmesh
 
-- make new dmesh model and generate renderobjects as needed
+- change color of selected verts
 
 - switch between object and edit mode
 
 - Command System // Editing Actions
 
-- making UI work again
+- making UI work again (add cube, sphere, etc)
 
 - making the camera better
 
 - make infinite grid
+
+(if i have time):
+
+- export obj
+
+- add some mesh editing functions
+
+- implement a mirror modifier
+
+
+ISSUES:
+
+- Notable vkdevicewaitidle or vkqueuewaitidle calls: 
+	CommandPool::endSingleTimeCommands
+	VulkanRenderer::pickId
+	GpuBuffer::uploadOrResize
+could be optimized by using mapped buffers for gpubuffer
+or a deletion queue
 
 
 FUTURE:
@@ -40,6 +58,8 @@ QUALITY OF LIFE:
 
 
 REMINDERS:
+
+- if you add new files in src you have to rerun cmake because of recursive build
 
 - descriptor pool size is hardcoded to 1000 for simplicity
 

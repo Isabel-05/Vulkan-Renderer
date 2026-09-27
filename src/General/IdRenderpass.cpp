@@ -1,29 +1,46 @@
 #include "IdRenderpass.h"
 #include "MaterialUtils.h"
 #include "Image.h"
+#include "GpuMeshCache.h"
+
+#include <array>
 
 void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent)
 {
     extent = inExtent;
 
-    MaterialUtils::createIdPipeline(
+    MaterialUtils::createPipeline(
         context,
         std::string(SHADER_DIR) + "IdObjectVert.spv",
         std::string(SHADER_DIR) + "IdObjectFrag.spv",
         cameraDs,
+        VK_FALSE,
+        VK_FALSE,
         VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         VkPolygonMode::VK_POLYGON_MODE_FILL,
+        VK_FORMAT_R32_UINT,
+        sizeof(IdPushConstants),
+        VK_SAMPLE_COUNT_1_BIT,
+        PointVertexAttribs::getBindingDescription(),
+        PointVertexAttribs::getAttributeDescriptions(),
         idObjectPipeline,
         idObjectPipelineLayout
     );
 
-    MaterialUtils::createIdPipeline(
+    MaterialUtils::createPipeline(
         context,
         std::string(SHADER_DIR) + "IdEditVert.spv",
         std::string(SHADER_DIR) + "IdEditFrag.spv",
         cameraDs,
+        VK_FALSE,
+        VK_FALSE,
         VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
         VkPolygonMode::VK_POLYGON_MODE_POINT,
+        VK_FORMAT_R32_UINT,
+        sizeof(IdPushConstants),
+        VK_SAMPLE_COUNT_1_BIT,
+        PointVertexAttribs::getBindingDescription(),
+        PointVertexAttribs::getAttributeDescriptions(),
         idEditPipeline,
         idEditPipelineLayout
     );
