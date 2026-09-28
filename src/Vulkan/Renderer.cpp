@@ -185,6 +185,7 @@ void VulkanRenderer::drawFrame()
 	}
 	
 	// SELECTION HANDLING
+	//pick.wasClicked = true;
 	if (pick.wasClicked)
 		updateSelection();
 
@@ -322,7 +323,7 @@ void VulkanRenderer::updateObjects()
 	{
 		RenderObject newRO;
 		newRO.init(context, commandPool, dmesh);
-		newRO.name = dmesh.id;
+		newRO.name = dmesh->id;
 
 		GpuMaterial basemat;
 		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);
@@ -375,6 +376,7 @@ void VulkanRenderer::resizeViewportResources()
 void VulkanRenderer::updateSelection()
 {
 	uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
+
 	if (id != 0)
 	{
 		switch (editorState)
@@ -383,8 +385,10 @@ void VulkanRenderer::updateSelection()
 			scene.setSelectedObjId(id - 1);
 			break;
 		case EditorState::Edit:
-			selection.clearSelection();
-			selection.selectVertex(id);
+			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
+			std::fill(selectedObj->vertSelected.begin(), selectedObj->vertSelected.end(), 0);
+			selectedObj->vertSelected[id-1] = 1;
+			selectedObj->markSelectionDirty();
 		}
 	}
 	else

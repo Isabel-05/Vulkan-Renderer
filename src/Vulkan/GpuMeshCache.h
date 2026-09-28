@@ -55,6 +55,12 @@ struct GpuSurfaceVertex
 	glm::vec2 uv;
 };
 
+struct GpuPointVertex
+{
+	glm::vec3 pos;
+	uint32_t selected;
+};
+
 namespace SurfaceVertexAttribs
 {
 	VkVertexInputBindingDescription getBindingDescription();
@@ -82,7 +88,7 @@ struct GpuMeshCache
 
 	void sync(VulkanContext& context, CommandPool& cmdPool, bool wantOverlay);
 
-	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
+	void init(VulkanContext& context, CommandPool& cmdPool, std::shared_ptr<DMesh> dmesh);
 	void cleanup(VulkanContext& context);
 
 private:

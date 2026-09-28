@@ -11,7 +11,7 @@ struct GpuMaterial
 class RenderObject
 {
 public:
-	void init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh);
+	void init(VulkanContext& context, CommandPool& cmdPool, std::shared_ptr<DMesh> dmesh);
 	void cleanup(VulkanContext& context);
 
 	std::string name;

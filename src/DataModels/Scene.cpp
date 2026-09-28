@@ -2,7 +2,7 @@
 
 void Scene::addObj(DMesh& dmesh)
 {
-	objList.push_back(dmesh);
+	objList.push_back(std::make_shared<DMesh>(dmesh));
 	isDirty = true;
 }
 
@@ -10,7 +10,7 @@ void Scene::removeObj(uint32_t index)
 {
 	for (int i=0; i<objList.size(); i++)
 	{
-		if (objList[i].id == index)
+		if (objList[i]->id == index)
 		{
 			objList.erase(objList.begin() + i - 1);
 		}

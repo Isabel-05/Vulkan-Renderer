@@ -10,6 +10,7 @@ layout(push_constant) uniform PushConsts {
 } pc;
 
 layout(location = 0) in vec3 inPosition;
+layout(location = 1) in uint inSelected;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * pc.model * vec4(inPosition, 1.0);

@@ -1,6 +1,6 @@
 #include "RenderObject.h"
 
-void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
+void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::shared_ptr<DMesh> dmesh)
 {
 	gpuCache.init(context, cmdPool, dmesh);
 

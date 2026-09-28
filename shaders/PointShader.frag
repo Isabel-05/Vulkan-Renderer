@@ -1,5 +1,7 @@
 #version 450
 
+layout(location = 0) in flat uint inSelected;
+
 layout(location = 0) out vec4 outColor;
 
 void main() {
@@ -10,6 +12,7 @@ void main() {
     if (dist > 0.5) {
         discard;
     }
-
-    outColor = vec4(0.0f, 0.0f, 0.0f, 1.0);
+    
+    
+    outColor = vec4(vec3(0.8)*inSelected, 1.0);
 }

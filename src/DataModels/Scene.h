@@ -2,6 +2,8 @@
 
 #include "DMesh.h"
 
+#include <memory>
+
 class Scene
 {
 public:
@@ -15,8 +17,9 @@ public:
 
 	uint32_t getSelectedObjId();
 	void setSelectedObjId(uint32_t value);
+	std::shared_ptr<DMesh> getSelectedObj() { return objList[getSelectedObjId()]; }
 
-	std::vector<DMesh> objList;
+	std::vector<std::shared_ptr<DMesh>> objList;
 	bool isDirty = true;
 private:
 	uint32_t selectedObjId = 0;

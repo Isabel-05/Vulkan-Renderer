@@ -35,15 +35,16 @@ namespace PointVertexAttribs
 	{
 		VkVertexInputBindingDescription binding{};
 		binding.binding = 0;
-		binding.stride = sizeof(glm::vec3);
+		binding.stride = sizeof(GpuPointVertex);
 		binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		return binding;
 	}
 
 	std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions()
 	{
-		std::array<VkVertexInputAttributeDescription, 1> attrs{};
-		attrs[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 };
+		std::array<VkVertexInputAttributeDescription, 2> attrs{};
+		attrs[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GpuPointVertex, pos)};
+		attrs[1] = { 1, 0, VK_FORMAT_R32_UINT, offsetof(GpuPointVertex, selected)};
 		std::vector<VkVertexInputAttributeDescription> out(attrs.begin(), attrs.end());
 		return out;
 	}
@@ -180,6 +181,17 @@ namespace
 		}
 		return indices;
 	}
+
+	std::vector<GpuPointVertex> extractPoints(const DMesh& mesh)
+	{
+		std::vector<GpuPointVertex> out(mesh.positions.size());
+		for (size_t i = 0; i < out.size(); i++)
+		{
+			out[i].pos = mesh.positions[i];
+			out[i].selected = (i < mesh.vertSelected.size() && mesh.vertSelected[i]) ? 1u : 0u;
+		}
+		return out;
+	}
 }
 
 void GpuBuffer::cleanup(VulkanContext& context)
@@ -193,9 +205,9 @@ void GpuBuffer::cleanup(VulkanContext& context)
 }
 
 
-void GpuMeshCache::init(VulkanContext& context, CommandPool& cmdPool, DMesh& dmesh)
+void GpuMeshCache::init(VulkanContext& context, CommandPool& cmdPool, std::shared_ptr<DMesh> dmesh)
 {
-	dataMesh = std::make_shared<DMesh>(dmesh);
+	dataMesh = dmesh;
 }
 
 void GpuMeshCache::cleanup(VulkanContext& context)
@@ -212,6 +224,7 @@ void GpuMeshCache::sync(VulkanContext& context, CommandPool& cmdPool, bool wantO
 	bool posChanged = synced.positions != dataMesh->version.positions;
 	bool nrmChanged = synced.normals != dataMesh->version.normals;
 	bool uvChanged = synced.uvs != dataMesh->version.uvs;
+	bool selectionChanged = synced.selection != dataMesh->version.selection;
 
 	//The dedup key is (position, normal, uv) together, so any of the three
 	//invalidates the whole surface batch, not just one attribute stream.
@@ -220,10 +233,6 @@ void GpuMeshCache::sync(VulkanContext& context, CommandPool& cmdPool, bool wantO
 		SurfaceExtract surf = extractSurface(*dataMesh);
 		surfaceVertBuffer.uploadOrResize(context, cmdPool, surf.vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 		surfaceIdxBuffer.uploadOrResize(context, cmdPool, surf.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-		for(const auto& vert : surf.vertices)
-		{
-			std::cout << vert.normal.x << " " << vert.normal.y << " " << vert.normal.z << "\n";
-		}
 	}
 
 	//first upload should include overlays
@@ -231,8 +240,11 @@ void GpuMeshCache::sync(VulkanContext& context, CommandPool& cmdPool, bool wantO
 	if (wantOverlay || synced == MeshVersion{0,0,0,0,0})
 	{
 		//no dedup needed here. safe and cheap to reupload on every drag
-		if (posChanged || topoChanged)
-			pointBuffer.uploadOrResize(context, cmdPool, dataMesh->positions, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		if (posChanged || topoChanged || selectionChanged)
+		{
+			std::vector<GpuPointVertex> points = extractPoints(*dataMesh);
+			pointBuffer.uploadOrResize(context, cmdPool, points, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		}
 
 		//pure connectivity, only rebuilt when topology actually changes
 		if (topoChanged)
