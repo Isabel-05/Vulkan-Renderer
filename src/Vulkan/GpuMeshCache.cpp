@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <array>
+#include <iostream>
 
 namespace SurfaceVertexAttribs
 {
@@ -219,9 +220,15 @@ void GpuMeshCache::sync(VulkanContext& context, CommandPool& cmdPool, bool wantO
 		SurfaceExtract surf = extractSurface(*dataMesh);
 		surfaceVertBuffer.uploadOrResize(context, cmdPool, surf.vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 		surfaceIdxBuffer.uploadOrResize(context, cmdPool, surf.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+		for(const auto& vert : surf.vertices)
+		{
+			std::cout << vert.normal.x << " " << vert.normal.y << " " << vert.normal.z << "\n";
+		}
 	}
 
-	if (wantOverlay)
+	//first upload should include overlays
+	//so its not stale when you switch to edit mode for the first time
+	if (wantOverlay || synced == MeshVersion{0,0,0,0,0})
 	{
 		//no dedup needed here. safe and cheap to reupload on every drag
 		if (posChanged || topoChanged)

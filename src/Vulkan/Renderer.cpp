@@ -276,7 +276,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		
 		if (editorState == EditorState::Edit) //todo: and object is selected
 		{
-			RO.gpuCache.dataMesh->edges[0];
 			RO.drawEdges(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 		}

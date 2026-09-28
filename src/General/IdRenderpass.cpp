@@ -21,8 +21,8 @@ void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout
         VK_FORMAT_R32_UINT,
         sizeof(IdPushConstants),
         VK_SAMPLE_COUNT_1_BIT,
-        PointVertexAttribs::getBindingDescription(),
-        PointVertexAttribs::getAttributeDescriptions(),
+        SurfaceVertexAttribs::getBindingDescription(),
+        SurfaceVertexAttribs::getAttributeDescriptions(),
         idObjectPipeline,
         idObjectPipelineLayout
     );
