@@ -62,7 +62,7 @@ namespace MaterialUtils
 		rasterizer.rasterizerDiscardEnable = VK_FALSE; //if set to true then geometry never passes through rasterizer (wont show on screen)
 		rasterizer.polygonMode = polygonMode;
 		rasterizer.lineWidth = 1.0f;
-#ifndef __apple__
+#ifndef __APPLE__
 		rasterizer.lineWidth = 2.0f;
 #endif // !1
 		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;

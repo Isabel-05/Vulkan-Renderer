@@ -2,6 +2,7 @@
 #include "VulkanContext.h"
 #include "CommandPool.h"
 #include "DMesh.h"
+#include "BufferUtils.h"
 
 #include <memory>
 

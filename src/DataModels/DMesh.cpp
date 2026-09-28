@@ -28,7 +28,7 @@ void DMesh::loadObj(const std::string& path)
 	std::string err;
 
     //triangulate false
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str()), nullptr, false) {
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str(), nullptr, false)) {
 		throw std::runtime_error(err);
 	}
 
