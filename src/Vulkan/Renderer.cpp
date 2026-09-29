@@ -95,7 +95,7 @@ void VulkanRenderer::drawFrame()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(context.logicalDevice, swapChain.handle, UINT64_MAX, frameData.imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	guiRenderer->newFrame(commandPool, currentFrame, scene);
+	guiRenderer->newFrame(commandPool, currentFrame, scene, editorState);
 
 	// VIEWPORT RESIZE HANDLING	
 	if (checkViewportResize())
@@ -270,6 +270,27 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+	//ct += 0.000001f;
+
+	//std::vector<uint32_t> ids = scene.getSelectedObj()->getSelectedVertIds();
+	//for (int i = 0; i < ids.size(); i++)
+	//{
+	//	scene.getSelectedObj()->positions[ids[i]].y += ct;
+	//	scene.getSelectedObj()->markPositionsDirty();
+	//}
+
+	if (scene.getSelectedObj())
+	{
+		if (moveFlag && editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
+		{
+			uint32_t id = scene.getSelectedObj()->getSelectedVertIds()[0];
+			scene.getSelectedObj()->positions[id].y += (ct - pick.y)*0.005;
+			scene.getSelectedObj()->markPositionsDirty();
+			ct = pick.y;
+		}
+	}
+	
+
 	for (auto& RO : renderObjects)
 	{
 		RO.sync(context, commandPool, editorState==EditorState::Edit);
@@ -386,14 +407,10 @@ void VulkanRenderer::updateSelection()
 			break;
 		case EditorState::Edit:
 			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
-			std::fill(selectedObj->vertSelected.begin(), selectedObj->vertSelected.end(), 0);
+			selectedObj->clearSelection();
 			selectedObj->vertSelected[id-1] = 1;
 			selectedObj->markSelectionDirty();
 		}
-	}
-	else
-	{
-		selection.clearSelection();
 	}
 	pick.wasClicked = false;
 }
@@ -538,6 +555,25 @@ void VulkanRenderer::onResize()
 
 void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 {
+	//action = 1 means press 0 means release
+	//std::cout << scancode << std::endl;
+
+	//pressed G
+	if (scancode == 34 && action == 1)
+	{
+		moveFlag = true;
+		ct = pick.y;
+	}
+	//pressed tab
+	if (scancode == 15 && action == 1)
+	{
+		if (editorState == EditorState::Object)
+			editorState = EditorState::Edit;
+		else if (editorState == EditorState::Edit)
+			editorState = EditorState::Object;
+	}
+
+
 	guiRenderer->handleKey(key, scancode, action, mods);
 }
 
@@ -554,6 +590,8 @@ void VulkanRenderer::onMouseMove(double xpos, double ypos, float xoffset, float 
 
 void VulkanRenderer::onMousePressed(int button, int action, int mods)
 {
+	moveFlag = false;
+
 	if (!guiRenderer->isViewportHovered())
 	{
 		guiRenderer->handleMouseButton(button, action);

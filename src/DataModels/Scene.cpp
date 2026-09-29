@@ -28,3 +28,8 @@ void Scene::setSelectedObjId(uint32_t value)
 {
 	selectedObjId = value;
 }
+
+std::shared_ptr<DMesh> Scene::getSelectedObj()
+{
+	return objList[getSelectedObjId()];
+}

@@ -113,3 +113,19 @@ void DMesh::buildEdgesFromFaces()
 		}
 	}
 }
+
+void DMesh::clearSelection()
+{
+	std::fill(vertSelected.begin(), vertSelected.end(), 0);
+}
+
+std::vector<uint32_t> DMesh::getSelectedVertIds()
+{
+	std::vector<uint32_t> out;
+	for (uint32_t i = 0; i < vertSelected.size(); i++)
+	{
+		if (vertSelected[i] == 1)
+			out.push_back(i);
+	}
+	return out;
+}

@@ -9,12 +9,9 @@
 #include "ImGuiRenderer.h"
 #include "ShaderResources.h"
 #include "DMesh.h"
-#include "SelectionState.h"
 #include "IdRenderpass.h"
 
-#include <memory>
 
-enum class EditorState { Object, Edit};
 
 struct PickState { bool wasClicked; uint32_t x; uint32_t y; };
 
@@ -56,7 +53,6 @@ private:
 	Scene scene;
 	std::vector<RenderObject> renderObjects;
 
-	Selection selection;
 	IdRenderpass idPass;
 
 	uint32_t currentFrame = 0;
@@ -74,5 +70,8 @@ private:
 	PickState pick;
 	uint32_t pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY);
 	void updateSelection();
+
+	float ct = 0;
+	bool moveFlag = false;
 };
 

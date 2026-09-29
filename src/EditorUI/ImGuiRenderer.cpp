@@ -374,6 +374,9 @@ void ImGuiRenderer::setStyle()
 	style.Colors[ImGuiCol_Header] = lightPurple;
 	style.Colors[ImGuiCol_HeaderHovered] = darkPurple;
 
+	style.FrameRounding = 4.0f;
+	style.WindowRounding = 0.0f;   // Blender's panels are square, only buttons are rounded
+	style.ItemSpacing = ImVec2(6, 4);
 }
 
 void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
@@ -528,7 +531,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
 {
 	ImGui::NewFrame();
 
@@ -554,37 +557,17 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	//////////////////////
 	//VIEWPORT (3D SCENE)
 
-	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
-	
-	//make sure inputs within the viewport work ie camera
-	ImVec2 viewportPos = ImGui::GetWindowPos();
-	ImVec2 viewportSize = ImGui::GetWindowSize();
-	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
-	ImVec2 topLeft = viewportPos;
-	topLeft.y -= 100;
-	topLeft.y += 20; 
-	bottomright.y -= 15;
-	bottomright.x -= 15;
-	viewportHovered = ImGui::IsMouseHoveringRect(topLeft, bottomright);
+	createViewport(currentFrame, editorState);
 
-	//center image within the available region
-	ImGuiIO& io = ImGui::GetIO();
-	avail = ImGui::GetContentRegionAvail();
-	cursor = ImGui::GetCursorPos();
-	viewportScreenPos = ImGui::GetCursorScreenPos();
+	createObjectList(scene);
 
-	ImGui::Image(viewportTextureIds[currentFrame], avail);
-
-	ImGui::End();
-
-	createObjectList(cmdPool, currentFrame, scene);
-
-	createPropertiesPanel(cmdPool, currentFrame, scene);
+	createPropertiesPanel(scene);
 
 	
 	ImGui::EndFrame();
 	ImGui::Render();
 
+	ImGuiIO& io = ImGui::GetIO();
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		GLFWwindow* backup_current_context = glfwGetCurrentContext();
 		ImGui::UpdatePlatformWindows();
@@ -593,14 +576,78 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	}
 }
 
-void ImGuiRenderer::createObjectList(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
+void ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorState)
+{
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
+
+	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
+
+	if (ImGui::BeginMenuBar())
+	{
+
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.16f, 0.16f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.26f, 0.26f, 0.26f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.32f, 0.32f, 0.32f, 1.0f));
+
+		const char* modeLabel = (editorState == EditorState::Object) ? "Object Mode v" : "Edit Mode v";
+
+		bool clicked = ImGui::Button(modeLabel);
+		ImVec2 btnMin = ImGui::GetItemRectMin();
+		ImVec2 btnMax = ImGui::GetItemRectMax();
+
+		if (clicked)
+			ImGui::OpenPopup("ModePopup");
+
+		ImGui::SetNextWindowPos(ImVec2(btnMin.x, btnMax.y));
+		ImGui::SetNextWindowSize(ImVec2(btnMax.x - btnMin.x, 0));
+
+		if (ImGui::BeginPopup("ModePopup"))
+		{
+			if (ImGui::Selectable("Object Mode", editorState == EditorState::Object))
+				editorState = EditorState::Object;
+			if (ImGui::Selectable("Edit Mode", editorState == EditorState::Edit))
+				editorState = EditorState::Edit;
+			ImGui::EndPopup();
+		}
+
+		ImGui::PopStyleColor(3);
+		ImGui::PopStyleVar(); // FrameRounding only now
+
+		ImGui::EndMenuBar();
+	}
+
+
+
+	//make sure inputs within the viewport work ie camera
+	ImVec2 viewportPos = ImGui::GetWindowPos();
+	ImVec2 viewportSize = ImGui::GetWindowSize();
+	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
+	ImVec2 topLeft = viewportPos;
+
+	//center image within the available region
+	ImGuiIO& io = ImGui::GetIO();
+	avail = ImGui::GetContentRegionAvail();
+	cursor = ImGui::GetCursorPos();
+	viewportScreenPos = ImGui::GetCursorScreenPos();
+	viewportHovered = ImGui::IsMouseHoveringRect(viewportScreenPos,
+		ImVec2(viewportScreenPos.x + avail.x, viewportScreenPos.y + avail.y));
+
+	ImGui::Image(viewportTextureIds[currentFrame], avail);
+
+	ImGui::End();
+
+	ImGui::PopStyleVar();
+}
+
+void ImGuiRenderer::createObjectList(Scene& scene)
 {
 	ImGui::Begin("Objects");
 
 	ImGui::End();
 }
 
-void ImGuiRenderer::createPropertiesPanel(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene)
+void ImGuiRenderer::createPropertiesPanel(Scene& scene)
 {
 	ImGui::Begin("Properties");
 

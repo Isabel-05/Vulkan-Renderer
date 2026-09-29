@@ -28,21 +28,21 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	// State persistence for calculating movement deltas
 	// Static variables maintain state between callback invocations
-	static bool firstMouse = true;          // Flag to handle initial mouse position
-	static float lastX = 0.0f, lastY = 0.0f;  // Previous mouse position for delta calculation
+	static bool firstMouse = true; 
+	static float lastX = 0.0f, lastY = 0.0f; 
 
 	// Handle initial mouse position to prevent sudden camera jumps
 	// First callback provides absolute position, not relative movement
 	if (firstMouse) {
-		lastX = xpos;               // Initialize previous position
+		lastX = xpos; 
 		lastY = ypos;
-		firstMouse = false;         // Disable special handling for subsequent calls
+		firstMouse = false;   
 	}
 
 	// Calculate mouse movement deltas since last callback
 	// These deltas represent the amount and direction of mouse movement
-	float xoffset = xpos - lastX;                   // Horizontal movement (left-right)
-	float yoffset = lastY - ypos;                   // Vertical movement (inverted: screen Y increases downward, camera pitch increases upward)
+	float xoffset = xpos - lastX;                  
+	float yoffset = lastY - ypos;                   
 
 	// Update state for next callback iteration
 	lastX = xpos;

@@ -56,6 +56,8 @@ public:
 
 	uint32_t getFaceCount() const { return faceOffsets.empty() ? 0 : (uint32_t)faceOffsets.size() - 1; }
 	uint32_t getFaceSize(uint32_t f) const { return faceOffsets[f + 1] - faceOffsets[f]; }
+	void clearSelection();
+	std::vector<uint32_t> getSelectedVertIds();
 
 	void markPositionsDirty() { version.positions++; version.normals++; }
 	void markTopologyDirty() { version.topology++;  version.normals++; version.uvs++; version.selection++; }

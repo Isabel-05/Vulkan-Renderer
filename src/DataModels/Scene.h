@@ -17,7 +17,7 @@ public:
 
 	uint32_t getSelectedObjId();
 	void setSelectedObjId(uint32_t value);
-	std::shared_ptr<DMesh> getSelectedObj() { return objList[getSelectedObjId()]; }
+	std::shared_ptr<DMesh> getSelectedObj();
 
 	std::vector<std::shared_ptr<DMesh>> objList;
 	bool isDirty = true;

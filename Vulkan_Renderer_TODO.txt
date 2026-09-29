@@ -1,18 +1,17 @@
 NEXT:
 
-- make sure selection maps to dmesh
+- object mode outline shader (selection)
 
-- change color of selected verts
-
-- switch between object and edit mode
+- make infinite grid
 
 - Command System // Editing Actions
 
-- making UI work again (add cube, sphere, etc)
+- move transform to dmesh / object transforms (move, scale)
+
+- Draw UI: Smooth/Flat shading toggle in properties, Object list, adding primitives
 
 - making the camera better
 
-- make infinite grid
 
 (if i have time):
 
@@ -58,6 +57,8 @@ QUALITY OF LIFE:
 
 
 REMINDERS:
+
+- i have to do something with the normal matrix in base shader if i non uniform scale or smth
 
 - if you add new files in src you have to rerun cmake because of recursive build
 
