@@ -42,11 +42,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 
-		idPass.createResources(context, shaderResources.cameraDSLayout, swapChain.extent);
+		idPass.createResources(context, shaderResources.cameraDSLayout, swapChain.extent, frameData.maxFramesInFlight);
 
 		// Object for testing purposes
 		DMesh dmesh;
-		dmesh.init(0, std::string(ASSET_DIR) + "models/BlenderCube.obj");
+		dmesh.init(1, std::string(ASSET_DIR) + "models/BlenderCube.obj");
 		scene.addObj(dmesh);
 		scene.setSelectedObjId(0);
 	}
@@ -95,7 +95,8 @@ void VulkanRenderer::drawFrame()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(context.logicalDevice, swapChain.handle, UINT64_MAX, frameData.imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	guiRenderer->newFrame(commandPool, currentFrame, scene, editorState);
+	if (guiRenderer->newFrame(commandPool, currentFrame, scene, editorState))
+		switchEditorState();
 
 	// VIEWPORT RESIZE HANDLING	
 	if (checkViewportResize())
@@ -121,6 +122,11 @@ void VulkanRenderer::drawFrame()
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
 
+	//ID PASS (for outline and selection)
+	if (pick.wasClicked || (editorState == EditorState::Object && scene.getSelectedObjId() != 0))
+	{
+		recordIdPass(frameData.commandBuffers[currentFrame], currentFrame, frameData.cameraDescriptorSets[currentFrame]);
+	}
 
 	// COMMAND RECORDING END
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
@@ -183,11 +189,13 @@ void VulkanRenderer::drawFrame()
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
 	}
-	
-	// SELECTION HANDLING
-	//pick.wasClicked = true;
+
 	if (pick.wasClicked)
-		updateSelection();
+	{
+		uint32_t id = pickId(currentFrame, pick.x, pick.y);
+		updateSelection(id);
+		pick.wasClicked = false;
+	}
 
 	currentFrame = (currentFrame + 1) % frameData.maxFramesInFlight;
 }
@@ -270,15 +278,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	//ct += 0.000001f;
-
-	//std::vector<uint32_t> ids = scene.getSelectedObj()->getSelectedVertIds();
-	//for (int i = 0; i < ids.size(); i++)
-	//{
-	//	scene.getSelectedObj()->positions[ids[i]].y += ct;
-	//	scene.getSelectedObj()->markPositionsDirty();
-	//}
-
 	if (scene.getSelectedObj())
 	{
 		if (moveFlag && editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
@@ -290,7 +289,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		}
 	}
 	
-
 	for (auto& RO : renderObjects)
 	{
 		RO.sync(context, commandPool, editorState==EditorState::Edit);
@@ -394,16 +392,14 @@ void VulkanRenderer::resizeViewportResources()
 	guiRenderer->reloadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 }
 
-void VulkanRenderer::updateSelection()
+void VulkanRenderer::updateSelection(uint32_t id)
 {
-	uint32_t id = pickId(frameData.cameraDescriptorSets[currentFrame], pick.x, pick.y);
-
 	if (id != 0)
 	{
 		switch (editorState)
 		{
 		case EditorState::Object:
-			scene.setSelectedObjId(id - 1);
+			scene.setSelectedObjId(id);
 			break;
 		case EditorState::Edit:
 			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
@@ -412,22 +408,17 @@ void VulkanRenderer::updateSelection()
 			selectedObj->markSelectionDirty();
 		}
 	}
-	pick.wasClicked = false;
 }
 
 
-uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY)
+void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS)
 {
-	vkDeviceWaitIdle(context.logicalDevice);
-
-	VkCommandBuffer cmdBuffer = commandPool.beginSingleTimeCommands(context);
-
-	ImageUtils::transitionImageLayout(context, commandPool, idPass.texture, VK_FORMAT_R32_UINT,
+	ImageUtils::transitionImageLayout(context, commandPool, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 
 	VkRenderingAttachmentInfo colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-	colorAttachment.imageView = idPass.textureView;
+	colorAttachment.imageView = idPass.idTextureViews[currentFrame];
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -467,7 +458,7 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 			vkCmdBindIndexBuffer(cmdBuffer, obj.gpuCache.surfaceIdxBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idObjectPipelineLayout, 0, 1, &cameraDS, 0, nullptr);
 
-			IDPushConstants pc{ obj.getModelMatrix(), i + 1 }; // +1: reserve 0
+			IDPushConstants pc{ obj.getModelMatrix(), renderObjects[i].gpuCache.dataMesh->id };
 			vkCmdPushConstants(cmdBuffer, idPass.idObjectPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
 
 			vkCmdDrawIndexed(cmdBuffer, obj.gpuCache.surfaceIdxBuffer.count, 1, 0, 0, 0);
@@ -475,7 +466,13 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 	}
 	else
 	{
-		RenderObject& obj = renderObjects[scene.getSelectedObjId()];
+		//safe bc in edit mode we always have a selected object
+		//checked in drawloop (if scene.selectedObj() != 0)
+		RenderObject obj;
+		for (auto& RO : renderObjects)
+		{
+			RO.gpuCache.dataMesh->id == scene.getSelectedObjId() ? obj = RO : void();
+		}
 		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipeline);
 		VkBuffer vbufs[] = { obj.gpuCache.pointBuffer.buffer };
 		VkDeviceSize offsets[] = { 0 };
@@ -489,8 +486,13 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 	}
 
 	vkCmdEndRendering(cmdBuffer);
+}
 
-	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.texture, VK_FORMAT_R32_UINT,
+uint32_t VulkanRenderer::pickId(uint32_t currentFrame, uint32_t pixelX, uint32_t pixelY)
+{
+	VkCommandBuffer cmdBuffer = commandPool.beginSingleTimeCommands(context);
+
+	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1);
 
 	//make sure box isnt outside of extent bounds
@@ -502,9 +504,9 @@ uint32_t VulkanRenderer::pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint
 	region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT /*VkImageAspectFlags */, 0 /*mipLevel*/, 0 /*baseArrayLayer*/, 1 /*layerCount*/ };
 	region.imageOffset = { x, y, 0 };
 	region.imageExtent = { idPass.boxSize, idPass.boxSize, 1 }; //safe bc min is 0
-	vkCmdCopyImageToBuffer(cmdBuffer, idPass.texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, idPass.readbackBuffer, 1, &region);
+	vkCmdCopyImageToBuffer(cmdBuffer, idPass.idTextures[currentFrame], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, idPass.readbackBuffer, 1, &region);
 
-	commandPool.endSingleTimeCommands(context, cmdBuffer); //vkQueueWaitIdle until buffer copy has finished
+	commandPool.endSingleTimeCommands(context, cmdBuffer);
 
 	uint32_t id = 0;
 	void* mapped;
@@ -566,12 +568,7 @@ void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 	}
 	//pressed tab
 	if (scancode == 15 && action == 1)
-	{
-		if (editorState == EditorState::Object)
-			editorState = EditorState::Edit;
-		else if (editorState == EditorState::Edit)
-			editorState = EditorState::Object;
-	}
+		switchEditorState();
 
 
 	guiRenderer->handleKey(key, scancode, action, mods);
@@ -637,5 +634,13 @@ void VulkanRenderer::onMouseWheel(double xoffset, double yoffset)
 		io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
 		return;
 	}
+}
+
+void VulkanRenderer::switchEditorState()
+{
+	if (editorState == EditorState::Object && scene.getSelectedObj() != 0)
+		editorState = EditorState::Edit;
+	else if (editorState == EditorState::Edit)
+		editorState = EditorState::Object;
 }
 

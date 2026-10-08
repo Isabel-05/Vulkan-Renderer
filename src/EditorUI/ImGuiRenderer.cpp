@@ -531,7 +531,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
+bool ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
 {
 	ImGui::NewFrame();
 
@@ -557,7 +557,7 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	//////////////////////
 	//VIEWPORT (3D SCENE)
 
-	createViewport(currentFrame, editorState);
+	bool editStateChanged = createViewport(currentFrame, editorState);
 
 	createObjectList(scene);
 
@@ -574,10 +574,14 @@ void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 		ImGui::RenderPlatformWindowsDefault();
 		glfwMakeContextCurrent(backup_current_context);
 	}
+
+	return editStateChanged;
 }
 
-void ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorState)
+bool ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorState)
 {
+	bool out = false;
+
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
 
 	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
@@ -602,12 +606,14 @@ void ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorSta
 		ImGui::SetNextWindowPos(ImVec2(btnMin.x, btnMax.y));
 		ImGui::SetNextWindowSize(ImVec2(btnMax.x - btnMin.x, 0));
 
+		
+
 		if (ImGui::BeginPopup("ModePopup"))
 		{
 			if (ImGui::Selectable("Object Mode", editorState == EditorState::Object))
-				editorState = EditorState::Object;
+				out = true;
 			if (ImGui::Selectable("Edit Mode", editorState == EditorState::Edit))
-				editorState = EditorState::Edit;
+				out = true;
 			ImGui::EndPopup();
 		}
 
@@ -638,6 +644,8 @@ void ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorSta
 	ImGui::End();
 
 	ImGui::PopStyleVar();
+
+	return out;
 }
 
 void ImGuiRenderer::createObjectList(Scene& scene)

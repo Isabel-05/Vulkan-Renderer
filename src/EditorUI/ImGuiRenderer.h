@@ -39,7 +39,7 @@ public:
 	void reloadOutputImages(VkSampler& sampler, std::vector<VkImageView>& outputImageViews);
 
 	// Frame-by-frame rendering operations
-	void newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState);
+	bool newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState);
 	void updateBuffers(uint32_t currentFrame, uint32_t maxFramesInFlight);
 	void recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& commandBuffer, CommandPool& cmdPool, VkImageView& imageView); 
 
@@ -68,18 +68,18 @@ private:
 	void updateTexture(CommandPool& cmdPool, ImTextureData* tex);
 
 	//UI Window Creation
-	void createViewport(uint32_t currentFrame, EditorState& editorState);
+	bool createViewport(uint32_t currentFrame, EditorState& editorState);
 	void createPropertiesPanel(Scene& scene);
 	void createObjectList(Scene& scene);
 
 	std::vector<VkDescriptorSet> viewportDescriptorSets;
 	std::vector<ImTextureID> viewportTextureIds;
 
-	std::vector<VkBuffer> vertexBuffers;                                    
-	std::vector<VkBuffer> indexBuffers;   
+	std::vector<VkBuffer> vertexBuffers;
+	std::vector<VkBuffer> indexBuffers;
 	std::vector<VkDeviceMemory> vertexBufferMemories;
 	std::vector<VkDeviceMemory> indexBufferMemories;
-	std::vector<uint32_t> vertexCounts;                              
+	std::vector<uint32_t> vertexCounts;           
 	std::vector<uint32_t> indexCounts;
 
 	VkSampler sampler = VK_NULL_HANDLE;

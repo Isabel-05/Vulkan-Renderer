@@ -5,7 +5,7 @@
 
 #include <array>
 
-void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent)
+void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent, uint32_t maxFramesInFlight)
 {
     extent = inExtent;
 
@@ -45,26 +45,33 @@ void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout
         idEditPipelineLayout
     );
 
-    ImageUtils::createImage(
-        context,
-        inExtent.width,
-        inExtent.height,
-        VK_FORMAT_R32_UINT,
-        VkImageTiling::VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        texture,
-        textureMemory
-    );
+	idTextures.resize(maxFramesInFlight);
+	idTextureViews.resize(maxFramesInFlight);
+	idTextureMemories.resize(maxFramesInFlight);
 
-    ImageUtils::createImageView(
-        context,
-        texture,
-        VK_FORMAT_R32_UINT,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        textureView,
-        1
-    );
+    for (uint32_t i = 0; i < maxFramesInFlight; i++)
+    {
+        ImageUtils::createImage(
+            context,
+            inExtent.width,
+            inExtent.height,
+            VK_FORMAT_R32_UINT,
+            VkImageTiling::VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            idTextures[i],
+            idTextureMemories[i]
+        );
+
+        ImageUtils::createImageView(
+            context,
+            idTextures[i],
+            VK_FORMAT_R32_UINT,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            idTextureViews[i],
+            1
+        );
+    }
 
     BufferUtils::createBuffer(
         context,
@@ -79,9 +86,12 @@ void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout
 
 void IdRenderpass::cleanup(VulkanContext& context)
 {
-    vkDestroyImageView(context.logicalDevice, textureView, nullptr);
-    vkDestroyImage(context.logicalDevice, texture, nullptr);
-    vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
+	for (int i = 0; i < idTextures.size(); i++)
+	{
+		vkDestroyImageView(context.logicalDevice, idTextureViews[i], nullptr);
+		vkDestroyImage(context.logicalDevice, idTextures[i], nullptr);
+		vkFreeMemory(context.logicalDevice, idTextureMemories[i], nullptr);
+	}
 
     vkDestroyBuffer(context.logicalDevice, readbackBuffer, nullptr);
     vkFreeMemory(context.logicalDevice, readbackBufferMemory, nullptr);
@@ -96,14 +106,36 @@ void IdRenderpass::cleanup(VulkanContext& context)
 void IdRenderpass::resize(VulkanContext& context, VkExtent2D inExtent)
 {
     extent = inExtent;
+    size_t size = idTextures.size();
+    
+    for (int i = 0; i < size; i++)
+    {
+        vkDestroyImageView(context.logicalDevice, idTextureViews[i], nullptr);
+        vkDestroyImage(context.logicalDevice, idTextures[i], nullptr);
+        vkFreeMemory(context.logicalDevice, idTextureMemories[i], nullptr);
+    }
 
-    vkDestroyImageView(context.logicalDevice, textureView, nullptr);
-    vkDestroyImage(context.logicalDevice, texture, nullptr);
-    vkFreeMemory(context.logicalDevice, textureMemory, nullptr);
+    for (uint32_t i = 0; i < size; i++)
+    {
+        ImageUtils::createImage(
+            context,
+            inExtent.width,
+            inExtent.height,
+            VK_FORMAT_R32_UINT,
+            VkImageTiling::VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            idTextures[i],
+            idTextureMemories[i]
+        );
 
-    ImageUtils::createImage(context, extent.width, extent.height, VK_FORMAT_R32_UINT,
-        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture, textureMemory);
-
-    ImageUtils::createImageView(context, texture, VK_FORMAT_R32_UINT, VK_IMAGE_ASPECT_COLOR_BIT, textureView, 1);
+        ImageUtils::createImageView(
+            context,
+            idTextures[i],
+            VK_FORMAT_R32_UINT,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            idTextureViews[i],
+            1
+        );
+    }
 }

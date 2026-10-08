@@ -12,7 +12,7 @@ struct IdPushConstants
 class IdRenderpass 
 {
 public:
-	void createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent);
+	void createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent, uint32_t maxFramesInFlight);
 	void resize(VulkanContext& context, VkExtent2D inExtent);
 	void cleanup(VulkanContext& context);
 	
@@ -22,9 +22,9 @@ public:
 	VkPipeline idObjectPipeline;
 	VkPipelineLayout idObjectPipelineLayout;
 
-	VkImage texture;
-	VkImageView textureView;
-	VkDeviceMemory textureMemory;
+	std::vector<VkImage> idTextures;
+	std::vector<VkImageView> idTextureViews;
+	std::vector<VkDeviceMemory> idTextureMemories;
 
 	VkBuffer readbackBuffer;
 	VkDeviceMemory readbackBufferMemory;

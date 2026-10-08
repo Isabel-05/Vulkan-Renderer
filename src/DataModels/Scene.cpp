@@ -31,5 +31,12 @@ void Scene::setSelectedObjId(uint32_t value)
 
 std::shared_ptr<DMesh> Scene::getSelectedObj()
 {
-	return objList[getSelectedObjId()];
+	for (int i = 0; i < objList.size(); i++)
+	{
+		if (objList[i]->id == selectedObjId)
+		{
+			return objList[i];
+		}
+	}
+	return nullptr;
 }

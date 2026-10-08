@@ -36,9 +36,11 @@ public:
 	void onMousePressed(int button, int action, int mods);
 	void onMouseWheel(double xoffset, double yoffset);
 
+	void switchEditorState();
+
 
 private:
-	EditorState editorState = EditorState::Edit;
+	EditorState editorState = EditorState::Object;
 
 	std::unique_ptr<ImGuiRenderer> guiRenderer;
 
@@ -68,8 +70,9 @@ private:
 	void resizeViewportResources();
 
 	PickState pick;
-	uint32_t pickId(VkDescriptorSet& cameraDS, uint32_t pixelX, uint32_t pixelY);
-	void updateSelection();
+	void recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS);
+	uint32_t pickId(uint32_t currentFrame, uint32_t pixelX, uint32_t pixelY);
+	void updateSelection(uint32_t id);
 
 	float ct = 0;
 	bool moveFlag = false;

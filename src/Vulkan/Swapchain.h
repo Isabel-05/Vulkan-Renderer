@@ -10,6 +10,7 @@ public:
 
 	void cleanup(VulkanContext& context);
 
+	//frame buffer attachments
 	VkSwapchainKHR handle;
 	std::vector<VkImage> images;
 	std::vector<VkImageView> imageViews;

@@ -8,7 +8,10 @@ NEXT:
 
 - move transform to dmesh / object transforms (move, scale)
 
-- Draw UI: Smooth/Flat shading toggle in properties, Object list, adding primitives
+- Editor UI:
+	- Smooth/Flat shading toggle in properties 
+	- Object list / adding primitives
+	- make import obj work
 
 - making the camera better
 
