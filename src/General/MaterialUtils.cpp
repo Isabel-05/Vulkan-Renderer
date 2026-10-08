@@ -5,7 +5,7 @@
 namespace MaterialUtils
 {
 	void createPipeline(VulkanContext& context, std::string vertShaderPath, std::string fragShaderPath, VkDescriptorSetLayout cameraDSLayout, VkBool32 blendEnable,
-		VkBool32 depthWriteEnable, VkPrimitiveTopology topology, VkPolygonMode polygonMode, const VkFormat& outputFormat, uint32_t pushconstantSize, VkSampleCountFlagBits samples,
+		VkBool32 depthWriteEnable, VkBool32 depthTestEnable, VkPrimitiveTopology topology, VkPolygonMode polygonMode, const VkFormat& outputFormat, uint32_t pushconstantSize, VkSampleCountFlagBits samples,
 		VkVertexInputBindingDescription bindingDesc, const std::vector<VkVertexInputAttributeDescription>& attributeDescs,
 		VkPipeline& outPipeline, VkPipelineLayout& outPipelineLayout)
 	{
@@ -127,10 +127,10 @@ namespace MaterialUtils
 
 		VkPipelineDepthStencilStateCreateInfo depthStencil{};
 		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depthStencil.depthTestEnable = VK_TRUE;
+		depthStencil.depthTestEnable = depthTestEnable;
 		depthStencil.depthWriteEnable = depthWriteEnable;
 		//check for fragment depth is smaller than previous
-		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
 		//lets you test if the fragments are between a certain min and max depth. Otherwise discard
 		depthStencil.depthBoundsTestEnable = VK_FALSE;

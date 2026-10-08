@@ -63,6 +63,8 @@ void ShaderResources::createDescriptorPool(VulkanContext& context)
 
 void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& swapchainFormat)
 {
+	VkBool32 compareOp = VK_TRUE;
+
 	MaterialUtils::createPipeline(
 		context,
 		std::string(SHADER_DIR) + "BaseVert.spv",
@@ -70,6 +72,7 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		cameraDSLayout,
 		VK_TRUE,
 		VK_TRUE,
+		compareOp,
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		VK_POLYGON_MODE_FILL,
 		swapchainFormat,
@@ -88,6 +91,7 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		cameraDSLayout,
 		VK_TRUE,
 		VK_FALSE,
+		compareOp,
 		VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
 		VK_POLYGON_MODE_LINE,
 		swapchainFormat,
@@ -106,6 +110,7 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		cameraDSLayout,
 		VK_TRUE,
 		VK_FALSE,
+		compareOp,
 		VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
 		VK_POLYGON_MODE_POINT,
 		swapchainFormat,

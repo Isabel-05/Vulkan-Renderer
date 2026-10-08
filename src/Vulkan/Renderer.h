@@ -12,7 +12,6 @@
 #include "IdRenderpass.h"
 
 
-
 struct PickState { bool wasClicked; uint32_t x; uint32_t y; };
 
 struct IDPushConstants { glm::mat4 model; uint32_t id; };
