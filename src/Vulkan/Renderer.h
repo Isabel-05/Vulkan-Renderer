@@ -42,37 +42,47 @@ private:
 	EditorState editorState = EditorState::Object;
 
 	std::unique_ptr<ImGuiRenderer> guiRenderer;
+	VkExtent2D viewportExtent = { 1, 1 };
 
 	Camera camera;
 	Swapchain swapChain;
 	VulkanContext context;
+	IdRenderpass idPass;
 	ShaderResources shaderResources;
 	CommandPool commandPool;
 	FrameData frameData;
-	VkExtent2D viewportExtent = { 1, 1 };
 
 	Scene scene;
 	std::vector<RenderObject> renderObjects;
 
-	IdRenderpass idPass;
+	//Recording/Rendering functions
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	void recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS);
+	void recordOutlinePass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame);
 
+	//update functions
+	void updateObjects();
+	void resizeViewportResources();
+	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
+
+	//selection
+	void updateSelection(uint32_t id);
+	uint32_t pickId(uint32_t currentFrame, uint32_t pixelX, uint32_t pixelY);
+
+	//helper functions
+	bool checkViewportResize();
+	void toColorAt(VkCommandBuffer& cmdBuffer, VkImage& image);
+	void toShaderRead(VkCommandBuffer& cmdBuffer, VkImage& image);
+
+
+	//tracking variables
+	PickState pick;
 	uint32_t currentFrame = 0;
 	bool framebufferResized = false;
 
 	float inputScale = 1.0f;
 
-	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-	void updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
-
-	void updateObjects();
-	bool checkViewportResize();
-	void resizeViewportResources();
-
-	PickState pick;
-	void recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS);
-	uint32_t pickId(uint32_t currentFrame, uint32_t pixelX, uint32_t pixelY);
-	void updateSelection(uint32_t id);
-
+	//Temp Bullshit
 	float ct = 0;
 	bool moveFlag = false;
 };

@@ -118,6 +118,8 @@ set(SHADER_MAP
     "IdObjectShader.frag=IdObjectFrag.spv"
     "IdEditShader.vert=IdEditVert.spv"
     "IdEditShader.frag=IdEditFrag.spv"
+    "OutlineShader.vert=OutlineVert.spv"
+    "OutlineShader.frag=OutlineFrag.spv"
 
     "imgui_shader.vert=imgui_vert.spv"
     "imgui_shader.frag=imgui_frag.spv"

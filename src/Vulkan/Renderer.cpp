@@ -42,7 +42,8 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		guiRenderer->init((float)swapChain.extent.width, (float)swapChain.extent.height);
 		guiRenderer->loadOutputImages(swapChain.outputSampler, swapChain.outputImageViews);
 
-		idPass.createResources(context, shaderResources.cameraDSLayout, swapChain.extent, frameData.maxFramesInFlight);
+		idPass.createResources(context, shaderResources.cameraDSLayout, shaderResources.outlineDSLayout,
+			shaderResources.descriptorPool, swapChain.extent, frameData.maxFramesInFlight);
 
 		// Object for testing purposes
 		DMesh dmesh;
@@ -116,18 +117,27 @@ void VulkanRenderer::drawFrame()
 	// VIEWPORT RENDERING COMMANDS
 	recordCommandBuffer(frameData.commandBuffers[currentFrame], imageIndex);
 
-	// IMGUI COMMANDS
+	//ID PASS (for outline and selection)
+	//pick.wasClicked = true;
+	bool wantOutline = editorState == EditorState::Object && scene.getSelectedObjId() != 0;
+	if (pick.wasClicked || wantOutline)
+	{
+		recordIdPass(frameData.commandBuffers[currentFrame], currentFrame, frameData.cameraDescriptorSets[currentFrame]);
+	}
+	if (wantOutline) 
+	{
+		recordOutlinePass(frameData.commandBuffers[currentFrame], currentFrame);
+	}
+
+	//FINISH VIEWPORT RENDERING
+	vkCmdEndRendering(frameData.commandBuffers[currentFrame]);
+	toShaderRead(frameData.commandBuffers[currentFrame], swapChain.outputImages[currentFrame]);
+
+	// IMGUI RENDERING COMMANDS
 	guiRenderer->updateBuffers(currentFrame, frameData.maxFramesInFlight);
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 	guiRenderer->recordCmdBuffer(currentFrame, frameData.commandBuffers[currentFrame], commandPool, swapChain.imageViews[imageIndex]);
-
-	//ID PASS (for outline and selection)
-	//pick.wasClicked = true;
-	if (pick.wasClicked || (editorState == EditorState::Object && scene.getSelectedObjId() != 0))
-	{
-		recordIdPass(frameData.commandBuffers[currentFrame], currentFrame, frameData.cameraDescriptorSets[currentFrame]);
-	}
 
 	// COMMAND RECORDING END
 	ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], swapChain.images[imageIndex], swapChain.imageFormat,
@@ -146,7 +156,6 @@ void VulkanRenderer::drawFrame()
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
-
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &frameData.commandBuffers[currentFrame];
 
@@ -163,14 +172,12 @@ void VulkanRenderer::drawFrame()
 	// PRESENT START	
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = signalSemaphores;
 
 	VkSwapchainKHR swapChains[] = { swapChain.handle };
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = swapChains;
-
 	presentInfo.pImageIndices = &imageIndex;
 
 	result = vkQueuePresentKHR(context.presentQueue, &presentInfo);
@@ -178,10 +185,7 @@ void VulkanRenderer::drawFrame()
 	// RESIZE HANDLING
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
-
-		if (checkViewportResize())
-			resizeViewportResources();
-
+		resizeViewportResources();
 		swapChain.recreateSwapChain(context, commandPool, frameData.maxFramesInFlight);
 
 		ImGuiIO& io = ImGui::GetIO();
@@ -191,6 +195,7 @@ void VulkanRenderer::drawFrame()
 		throw std::runtime_error("failed to present swap chain image!");
 	}
 
+	// SELECTION HANDLING
 	if (pick.wasClicked)
 	{
 		vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -205,31 +210,14 @@ void VulkanRenderer::drawFrame()
 
 void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-	//Begin recording
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = 0; // Optional (specifies how were using the buffer)
-	beginInfo.pInheritanceInfo = nullptr; // Optional (only needed for secondary buffers)
 
 	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	VkImageMemoryBarrier2 toColorAttachment{};
-	toColorAttachment.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-	toColorAttachment.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-	toColorAttachment.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT; // 0 if first use
-	toColorAttachment.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-	toColorAttachment.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-	toColorAttachment.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // or SHADER_READ_ONLY_OPTIMAL
-	toColorAttachment.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	toColorAttachment.image = swapChain.outputImages[currentFrame];
-	toColorAttachment.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-	VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-	dep.imageMemoryBarrierCount = 1;
-	dep.pImageMemoryBarriers = &toColorAttachment;
-	vkCmdPipelineBarrier2(commandBuffer, &dep);
+	toColorAt(commandBuffer, swapChain.outputImages[currentFrame]);
 
 	VkRenderingAttachmentInfoKHR colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -265,7 +253,6 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
-	//set our dynamic viewport and scissor
 	VkViewport viewport{};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -303,61 +290,11 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 		}
 	}
-
-	vkCmdEndRendering(commandBuffer);
-
-	VkImageMemoryBarrier2 toShaderRead{};
-	toShaderRead.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-	toShaderRead.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-	toShaderRead.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-	toShaderRead.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-	toShaderRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-	toShaderRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	toShaderRead.image = swapChain.outputImages[currentFrame];
-	toShaderRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-	VkDependencyInfo depInfo{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-	depInfo.imageMemoryBarrierCount = 1;
-	depInfo.pImageMemoryBarriers = &toShaderRead;
-	vkCmdPipelineBarrier2(commandBuffer, &depInfo);
-}
-
-
-void VulkanRenderer::updateSelection(uint32_t id)
-{
-	if (id != 0)
-	{
-		switch (editorState)
-		{
-		case EditorState::Object:
-			scene.setSelectedObjId(id);
-			break;
-		case EditorState::Edit:
-			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
-			selectedObj->clearSelection();
-			selectedObj->vertSelected[id-1] = 1;
-			selectedObj->markSelectionDirty();
-		}
-	}
-	else
-	{
-		switch (editorState)
-		{
-		case EditorState::Object:
-			scene.setSelectedObjId(0);
-			break;
-		case EditorState::Edit:
-			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
-			selectedObj->clearSelection();
-			selectedObj->markSelectionDirty();
-		}
-	}
 }
 
 void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS)
 {
-	ImageUtils::transitionImageLayout(context, commandPool, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
+	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 
 	VkRenderingAttachmentInfo colorAttachment{};
@@ -417,6 +354,8 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 		{
 			RO.gpuCache.dataMesh->id == scene.getSelectedObjId() ? obj = &RO : void();
 		}
+		if (!obj) return;
+
 		vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, idPass.idEditPipeline);
 		VkBuffer vbufs[] = { obj->gpuCache.pointBuffer.buffer };
 		VkDeviceSize offsets[] = { 0 };
@@ -430,6 +369,12 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 	}
 
 	vkCmdEndRendering(cmdBuffer);
+
+
+	// Transition the ID texture to shader read layout for outline rendering
+	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+
 
 	if (pick.wasClicked)
 	{
@@ -446,6 +391,76 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 		region.imageOffset = { x, y, 0 };
 		region.imageExtent = { idPass.boxSize, idPass.boxSize, 1 }; //safe bc min is 0
 		vkCmdCopyImageToBuffer(cmdBuffer, idPass.idTextures[currentFrame], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, idPass.readbackBuffer, 1, &region);
+	}
+}
+
+void VulkanRenderer::recordOutlinePass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame)
+{
+	VkRenderingAttachmentInfo colorAttachment{};
+	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	colorAttachment.imageView = swapChain.outputImageViews[currentFrame];
+	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // keep the already-shaded scene, outline just overlays it
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkRenderingInfo renderInfo{};
+	renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+	renderInfo.renderArea = { {0, 0}, viewportExtent };
+	renderInfo.layerCount = 1;
+	renderInfo.colorAttachmentCount = 1;
+	renderInfo.pColorAttachments = &colorAttachment;
+
+	vkCmdBeginRendering(cmdBuffer, &renderInfo);
+
+	VkViewport viewport{ 0, 0, (float)viewportExtent.width, (float)viewportExtent.height, 0.0f, 1.0f };
+	vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+	VkRect2D scissor{ {0,0}, viewportExtent };
+	vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+	vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shaderResources.OutlineShaderPl);
+	vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shaderResources.OutlineShaderLayout,
+		0, 1, &idPass.outlineDescriptorSets[currentFrame], 0, nullptr);
+
+	OutlinePushConstants pc{};
+	pc.selectedId = scene.getSelectedObjId();
+	pc.thickness = 2;
+	pc.texSize = glm::ivec2((int)viewportExtent.width, (int)viewportExtent.height);
+	vkCmdPushConstants(cmdBuffer, shaderResources.OutlineShaderLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(OutlinePushConstants), &pc);
+
+	vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // fullscreen triangle, built from gl_VertexIndex in the vertex shader
+
+	vkCmdEndRendering(cmdBuffer);
+}
+
+
+void VulkanRenderer::updateSelection(uint32_t id)
+{
+	if (id != 0)
+	{
+		switch (editorState)
+		{
+		case EditorState::Object:
+			scene.setSelectedObjId(id);
+			break;
+		case EditorState::Edit:
+			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
+			selectedObj->clearSelection();
+			selectedObj->vertSelected[id-1] = 1;
+			selectedObj->markSelectionDirty();
+		}
+	}
+	else
+	{
+		switch (editorState)
+		{
+		case EditorState::Object:
+			scene.setSelectedObjId(0);
+			break;
+		case EditorState::Edit:
+			std::shared_ptr<DMesh> selectedObj = scene.getSelectedObj();
+			selectedObj->clearSelection();
+			selectedObj->markSelectionDirty();
+		}
 	}
 }
 
@@ -491,6 +506,59 @@ uint32_t VulkanRenderer::pickId(uint32_t currentFrame, uint32_t pixelX, uint32_t
 }
 
 
+void VulkanRenderer::toColorAt(VkCommandBuffer& cmdBuffer, VkImage& image)
+{
+	VkImageMemoryBarrier2 toColorAttachment{};
+	toColorAttachment.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	toColorAttachment.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	toColorAttachment.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT; // 0 if first use
+	toColorAttachment.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	toColorAttachment.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+	toColorAttachment.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // or SHADER_READ_ONLY_OPTIMAL
+	toColorAttachment.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	toColorAttachment.image = image;
+	toColorAttachment.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	dep.imageMemoryBarrierCount = 1;
+	dep.pImageMemoryBarriers = &toColorAttachment;
+	vkCmdPipelineBarrier2(cmdBuffer, &dep);
+}
+
+void VulkanRenderer::toShaderRead(VkCommandBuffer& cmdBuffer, VkImage& image)
+{
+	VkImageMemoryBarrier2 toShaderRead{};
+	toShaderRead.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+	toShaderRead.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	toShaderRead.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+	toShaderRead.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	toShaderRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	toShaderRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	toShaderRead.image = image;
+	toShaderRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	VkDependencyInfo depInfo{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	depInfo.imageMemoryBarrierCount = 1;
+	depInfo.pImageMemoryBarriers = &toShaderRead;
+	vkCmdPipelineBarrier2(cmdBuffer, &depInfo);
+}
+
+
+bool VulkanRenderer::checkViewportResize()
+{
+	ImVec2 newAvail = guiRenderer->avail;
+	uint32_t newH = std::max(1, (int)newAvail.y);
+	uint32_t newW = std::max(1, (int)newAvail.x);
+
+	if (newW != viewportExtent.width || newH != viewportExtent.height)
+	{
+		viewportExtent = { newW, newH };
+		return true;
+	}
+	return false;
+}
+
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
 	UniformBufferObject ubo{};
@@ -532,20 +600,6 @@ void VulkanRenderer::updateObjects()
 
 		renderObjects.push_back(newRO);
 	}
-}
-
-bool VulkanRenderer::checkViewportResize()
-{
-	ImVec2 newAvail = guiRenderer->avail;
-	uint32_t newH = std::max(1, (int)newAvail.y);
-	uint32_t newW = std::max(1, (int)newAvail.x);
-
-	if (newW != viewportExtent.width || newH != viewportExtent.height)
-	{
-		viewportExtent = { newW, newH };
-		return true;
-	}
-	return false;
 }
 
 void VulkanRenderer::resizeViewportResources()

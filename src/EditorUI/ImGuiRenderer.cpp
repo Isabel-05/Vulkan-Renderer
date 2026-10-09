@@ -626,23 +626,14 @@ void ImGuiRenderer::createViewport(uint32_t currentFrame, Scene& scene, EditorSt
 		ImGui::EndMenuBar();
 	}
 
-
-
-	//make sure inputs within the viewport work ie camera
-	ImVec2 viewportPos = ImGui::GetWindowPos();
-	ImVec2 viewportSize = ImGui::GetWindowSize();
-	ImVec2 bottomright = ImVec2(viewportPos.x + viewportSize.x, viewportPos.y + viewportSize.y);
-	ImVec2 topLeft = viewportPos;
-
-	//center image within the available region
-	ImGuiIO& io = ImGui::GetIO();
+	
+	//set variables and center image within the available region
 	avail = ImGui::GetContentRegionAvail();
 	cursor = ImGui::GetCursorPos();
 	viewportScreenPos = ImGui::GetCursorScreenPos();
-	viewportHovered = ImGui::IsMouseHoveringRect(viewportScreenPos,
-		ImVec2(viewportScreenPos.x + avail.x, viewportScreenPos.y + avail.y));
 
 	ImGui::Image(viewportTextureIds[currentFrame], avail);
+	viewportHovered = ImGui::IsItemHovered();
 
 	ImGui::End();
 

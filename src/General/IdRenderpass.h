@@ -12,7 +12,8 @@ struct IdPushConstants
 class IdRenderpass 
 {
 public:
-	void createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent, uint32_t maxFramesInFlight);
+	void createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkDescriptorSetLayout outlineDS, VkDescriptorPool descriptorPool, VkExtent2D inExtent, uint32_t maxFramesInFlight);
+	void updateDescriptorSets(VulkanContext& context);
 	void resize(VulkanContext& context, VkExtent2D inExtent);
 	void cleanup(VulkanContext& context);
 	
@@ -28,6 +29,9 @@ public:
 
 	VkBuffer readbackBuffer;
 	VkDeviceMemory readbackBufferMemory;
+
+	VkSampler outlineSampler;
+	std::vector<VkDescriptorSet> outlineDescriptorSets;
 
 	VkExtent2D extent;
 

@@ -1,5 +1,14 @@
 #pragma once
 #include "VulkanContext.h"
+#include <glm/glm.hpp>
+
+struct OutlinePushConstants
+{
+	uint32_t   selectedId;
+	int32_t    thickness;
+	glm::ivec2 texSize;
+};
+
 
 class ShaderResources
 {
@@ -11,6 +20,7 @@ public:
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout cameraDSLayout;
+	VkDescriptorSetLayout outlineDSLayout;
 
 	void createDescriptorSetLayouts(VulkanContext& context);
 	void createDescriptorPool(VulkanContext& context);
@@ -26,9 +36,8 @@ public:
 	VkPipeline PointShaderPl;
 	VkPipelineLayout PointShaderLayout;
 
-	//TODO
-	//VkPipeline OutlineShaderPl;
-	//VkPipelineLayout OutlineShaderLayout;
+	VkPipeline OutlineShaderPl;
+	VkPipelineLayout OutlineShaderLayout;
 
 	//TODO
 	//VkPipeline GridShaderPl;
@@ -36,5 +45,5 @@ public:
 
 	void createPipelines(VulkanContext& context, const VkFormat& swapchainFormat);
 
-
+	void createOutlinePipeline(VulkanContext& context, const VkFormat& swapchainFormat);
 };

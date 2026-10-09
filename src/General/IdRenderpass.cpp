@@ -5,7 +5,7 @@
 
 #include <array>
 
-void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkExtent2D inExtent, uint32_t maxFramesInFlight)
+void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout cameraDs, VkDescriptorSetLayout outlineDS, VkDescriptorPool pool, VkExtent2D inExtent, uint32_t maxFramesInFlight)
 {
     extent = inExtent;
 
@@ -59,7 +59,7 @@ void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout
             inExtent.height,
             VK_FORMAT_R32_UINT,
             VkImageTiling::VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             idTextures[i],
             idTextureMemories[i]
@@ -84,7 +84,59 @@ void IdRenderpass::createResources(VulkanContext& context, VkDescriptorSetLayout
         readbackBufferMemory
     );
 
+    //no filtering/linear interpol sampler for uint texture
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+    if (vkCreateSampler(context.logicalDevice, &samplerInfo, nullptr, &outlineSampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create id texture sampler!");
+    }
+
+    std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, outlineDS);
+    VkDescriptorSetAllocateInfo dsAllocInfo{};
+    dsAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsAllocInfo.descriptorPool = pool;
+    dsAllocInfo.descriptorSetCount = maxFramesInFlight;
+    dsAllocInfo.pSetLayouts = layouts.data();
+
+    outlineDescriptorSets.resize(maxFramesInFlight);
+    if (vkAllocateDescriptorSets(context.logicalDevice, &dsAllocInfo, outlineDescriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate id texture descriptor sets!");
+    }
+
+	updateDescriptorSets(context);
 }
+
+void IdRenderpass::updateDescriptorSets(VulkanContext& context)
+{
+    for (size_t i = 0; i < outlineDescriptorSets.size(); i++)
+    {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = idTextureViews[i];
+        imageInfo.sampler = outlineSampler;
+
+        VkWriteDescriptorSet writeSet{};
+        writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeSet.dstSet = outlineDescriptorSets[i];
+        writeSet.dstBinding = 0;
+        writeSet.descriptorCount = 1;
+        writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeSet.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(context.logicalDevice, 1, &writeSet, 0, nullptr);
+    }
+}
+
 
 void IdRenderpass::cleanup(VulkanContext& context)
 {
@@ -94,6 +146,8 @@ void IdRenderpass::cleanup(VulkanContext& context)
 		vkDestroyImage(context.logicalDevice, idTextures[i], nullptr);
 		vkFreeMemory(context.logicalDevice, idTextureMemories[i], nullptr);
 	}
+
+	vkDestroySampler(context.logicalDevice, outlineSampler, nullptr);
 
     vkDestroyBuffer(context.logicalDevice, readbackBuffer, nullptr);
     vkFreeMemory(context.logicalDevice, readbackBufferMemory, nullptr);
@@ -125,7 +179,7 @@ void IdRenderpass::resize(VulkanContext& context, VkExtent2D inExtent)
             inExtent.height,
             VK_FORMAT_R32_UINT,
             VkImageTiling::VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             idTextures[i],
             idTextureMemories[i]
@@ -140,4 +194,6 @@ void IdRenderpass::resize(VulkanContext& context, VkExtent2D inExtent)
             1
         );
     }
+
+	updateDescriptorSets(context);
 }
