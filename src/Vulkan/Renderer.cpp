@@ -96,8 +96,7 @@ void VulkanRenderer::drawFrame()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(context.logicalDevice, swapChain.handle, UINT64_MAX, frameData.imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	if (guiRenderer->newFrame(commandPool, currentFrame, scene, editorState))
-		switchEditorState();
+	guiRenderer->newFrame(commandPool, currentFrame, scene, editorState);
 
 	// VIEWPORT RESIZE HANDLING	
 	if (checkViewportResize())

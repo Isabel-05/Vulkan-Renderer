@@ -531,7 +531,7 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-bool ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
+void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
 {
 	ImGui::NewFrame();
 
@@ -557,7 +557,7 @@ bool ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 	//////////////////////
 	//VIEWPORT (3D SCENE)
 
-	bool editStateChanged = createViewport(currentFrame, editorState);
+	createViewport(currentFrame, scene, editorState);
 
 	createObjectList(scene);
 
@@ -574,14 +574,10 @@ bool ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene&
 		ImGui::RenderPlatformWindowsDefault();
 		glfwMakeContextCurrent(backup_current_context);
 	}
-
-	return editStateChanged;
 }
 
-bool ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorState)
+void ImGuiRenderer::createViewport(uint32_t currentFrame, Scene& scene, EditorState& editorState)
 {
-	bool out = false;
-
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
 
 	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
@@ -611,9 +607,16 @@ bool ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorSta
 		if (ImGui::BeginPopup("ModePopup"))
 		{
 			if (ImGui::Selectable("Object Mode", editorState == EditorState::Object))
-				out = true;
+			{
+				editorState = EditorState::Object;
+			}
 			if (ImGui::Selectable("Edit Mode", editorState == EditorState::Edit))
-				out = true;
+			{
+				if (scene.getSelectedObjId() != 0)
+				{
+					editorState = EditorState::Edit;
+				}
+			}
 			ImGui::EndPopup();
 		}
 
@@ -644,8 +647,6 @@ bool ImGuiRenderer::createViewport(uint32_t currentFrame, EditorState& editorSta
 	ImGui::End();
 
 	ImGui::PopStyleVar();
-
-	return out;
 }
 
 void ImGuiRenderer::createObjectList(Scene& scene)
