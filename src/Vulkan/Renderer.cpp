@@ -126,11 +126,19 @@ void VulkanRenderer::drawFrame()
 	}
 	if (wantOutline) 
 	{
+		// Transition the ID texture to shader read layout for outline rendering
+		if (pick.wasClicked) {
+			ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+		}
+		else {
+			ImageUtils::transitionImageLayout(context, frameData.commandBuffers[currentFrame], idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+		}
 		recordOutlinePass(frameData.commandBuffers[currentFrame], currentFrame);
 	}
 
 	//FINISH VIEWPORT RENDERING
-	vkCmdEndRendering(frameData.commandBuffers[currentFrame]);
 	toShaderRead(frameData.commandBuffers[currentFrame], swapChain.outputImages[currentFrame]);
 
 	// IMGUI RENDERING COMMANDS
@@ -290,6 +298,8 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 		}
 	}
+
+	vkCmdEndRendering(commandBuffer);
 }
 
 void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS)
@@ -370,16 +380,10 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 
 	vkCmdEndRendering(cmdBuffer);
 
-
-	// Transition the ID texture to shader read layout for outline rendering
-	ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
-
-
 	if (pick.wasClicked)
 	{
 		ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1);
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1);
 
 		//make sure box isnt outside of extent bounds
 		int32_t x = std::clamp((int32_t)(pick.x - idPass.pickRadius), 0, (int32_t)(viewportExtent.width - idPass.boxSize));

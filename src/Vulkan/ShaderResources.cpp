@@ -9,6 +9,7 @@ void ShaderResources::cleanup(VulkanContext& context)
 	vkDestroyDescriptorPool(context.logicalDevice, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(context.logicalDevice, cameraDSLayout, nullptr);
+	vkDestroyDescriptorSetLayout(context.logicalDevice, outlineDSLayout, nullptr);
 
 	vkDestroyPipeline(context.logicalDevice, BaseShaderPl, nullptr);
 	vkDestroyPipelineLayout(context.logicalDevice, BaseShaderLayout, nullptr);
@@ -139,6 +140,8 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 		PointShaderPl,
 		PointShaderLayout
 	);
+
+	createOutlinePipeline(context, swapchainFormat);
 }
 
 void ShaderResources::createOutlinePipeline(VulkanContext& context, const VkFormat& swapchainFormat)
