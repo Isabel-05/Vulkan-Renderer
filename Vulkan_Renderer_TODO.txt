@@ -1,24 +1,20 @@
 NEXT:
 
-- object mode outline shader (selection)
-
 - make infinite grid
 
-- Command System // Editing Actions
-
 - move transform to dmesh / object transforms (move, scale)
+
+- Command System // Editing Actions
 
 - Editor UI:
 	- Smooth/Flat shading toggle in properties 
 	- Object list / adding primitives
-	- make import obj work
-
-- making the camera better
+	- make import/export obj work
 
 
 (if i have time):
 
-- export obj
+- making the camera better
 
 - add some mesh editing functions
 
@@ -29,7 +25,6 @@ ISSUES:
 
 - Notable vkdevicewaitidle or vkqueuewaitidle calls: 
 	CommandPool::endSingleTimeCommands
-	VulkanRenderer::pickId
 	GpuBuffer::uploadOrResize
 could be optimized by using mapped buffers for gpubuffer
 or a deletion queue

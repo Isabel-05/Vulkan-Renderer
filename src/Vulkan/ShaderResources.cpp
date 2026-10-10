@@ -22,6 +22,9 @@ void ShaderResources::cleanup(VulkanContext& context)
 
 	vkDestroyPipeline(context.logicalDevice, OutlineShaderPl, nullptr);
 	vkDestroyPipelineLayout(context.logicalDevice, OutlineShaderLayout, nullptr);
+
+	vkDestroyPipeline(context.logicalDevice, GridShaderPl, nullptr);
+	vkDestroyPipelineLayout(context.logicalDevice, GridShaderLayout, nullptr);
 }
 
 void ShaderResources::createDescriptorSetLayouts(VulkanContext& context)
@@ -31,8 +34,7 @@ void ShaderResources::createDescriptorSetLayouts(VulkanContext& context)
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkDescriptorSetLayoutBinding cameraBinding = uboLayoutBinding;
 	VkDescriptorSetLayoutCreateInfo cameralayoutInfo{};
@@ -142,6 +144,7 @@ void ShaderResources::createPipelines(VulkanContext& context, const VkFormat& sw
 	);
 
 	createOutlinePipeline(context, swapchainFormat);
+	createGridPipeline(context, swapchainFormat, context.msaaSamples);
 }
 
 void ShaderResources::createOutlinePipeline(VulkanContext& context, const VkFormat& swapchainFormat)
@@ -261,6 +264,133 @@ void ShaderResources::createOutlinePipeline(VulkanContext& context, const VkForm
 
 	if (vkCreateGraphicsPipelines(context.logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &OutlineShaderPl) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create outline pipeline!");
+	}
+
+	vkDestroyShaderModule(context.logicalDevice, fragShaderModule, nullptr);
+	vkDestroyShaderModule(context.logicalDevice, vertShaderModule, nullptr);
+}
+
+void ShaderResources::createGridPipeline(VulkanContext& context, const VkFormat& swapchainFormat, VkSampleCountFlagBits samples)
+{
+	auto vertShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "GridVert.spv");
+	auto fragShaderCode = BufferUtils::readFile(std::string(SHADER_DIR) + "GridFrag.spv");
+
+	VkShaderModule vertShaderModule = BufferUtils::createShaderModule(context, vertShaderCode);
+	VkShaderModule fragShaderModule = BufferUtils::createShaderModule(context, fragShaderCode);
+
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageInfo.module = fragShaderModule;
+	fragShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	//fullscreen triangle generated in the vertex shader, no vertex buffer
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizer.lineWidth = 1.0f;
+
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.rasterizationSamples = samples;
+	multisampling.sampleShadingEnable = VK_FALSE;
+
+	//alpha-blend the grid over whatever is already in the viewport target
+	VkPipelineColorBlendAttachmentState blendState{};
+	blendState.blendEnable = VK_TRUE;
+	blendState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	blendState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blendState.colorBlendOp = VK_BLEND_OP_ADD;
+	blendState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	blendState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	blendState.alphaBlendOp = VK_BLEND_OP_ADD;
+	blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &blendState;
+
+	//test and write *real* depth (computed in the shader from the ray/plane hit)
+	//so the grid is correctly hidden behind, and correctly hides, scene geometry
+	VkPipelineDepthStencilStateCreateInfo depthStencil{};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_TRUE;
+	depthStencil.depthWriteEnable = VK_FALSE;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkPipelineDynamicStateCreateInfo dynamicState{};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.dynamicStateCount = 2;
+	dynamicState.pDynamicStates = dynamicStates;
+
+	VkPushConstantRange pushConstantRange{};
+	pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	pushConstantRange.offset = 0;
+	pushConstantRange.size = sizeof(GridPushConstants);
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &cameraDSLayout;          // reuses the camera UBO set
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
+	if (vkCreatePipelineLayout(context.logicalDevice, &pipelineLayoutInfo, nullptr, &GridShaderLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create grid pipeline layout!");
+	}
+
+	VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo{};
+	pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+	pipelineRenderingInfo.colorAttachmentCount = 1;
+	pipelineRenderingInfo.pColorAttachmentFormats = &swapchainFormat;
+	pipelineRenderingInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.pNext = &pipelineRenderingInfo;
+	pipelineInfo.pDynamicState = &dynamicState;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.layout = GridShaderLayout;
+	pipelineInfo.renderPass = VK_NULL_HANDLE;
+	pipelineInfo.subpass = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+	if (vkCreateGraphicsPipelines(context.logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &GridShaderPl) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create grid pipeline!");
 	}
 
 	vkDestroyShaderModule(context.logicalDevice, fragShaderModule, nullptr);

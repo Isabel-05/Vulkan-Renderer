@@ -79,6 +79,7 @@ private:
 	PickState pick;
 	uint32_t currentFrame = 0;
 	bool framebufferResized = false;
+	glm::mat4 invViewProj;
 
 	float inputScale = 1.0f;
 

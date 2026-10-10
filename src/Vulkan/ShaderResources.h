@@ -9,6 +9,14 @@ struct OutlinePushConstants
 	glm::ivec2 texSize;
 };
 
+struct GridPushConstants
+{
+	glm::mat4 invViewProj;
+	glm::vec3 cameraPos;
+	float     cellSize;
+	float     fadeNear;
+	float     fadeFar;
+};
 
 class ShaderResources
 {
@@ -39,11 +47,11 @@ public:
 	VkPipeline OutlineShaderPl;
 	VkPipelineLayout OutlineShaderLayout;
 
-	//TODO
-	//VkPipeline GridShaderPl;
-	//VkPipelineLayout GridShaderLayout;
+	VkPipeline GridShaderPl;
+	VkPipelineLayout GridShaderLayout;
 
 	void createPipelines(VulkanContext& context, const VkFormat& swapchainFormat);
 
 	void createOutlinePipeline(VulkanContext& context, const VkFormat& swapchainFormat);
+	void createGridPipeline(VulkanContext& context, const VkFormat& swapchainFormat, VkSampleCountFlagBits samples);
 };

@@ -105,7 +105,7 @@ void VulkanRenderer::drawFrame()
 
 	// UPDATE VIEW PROJECTION UBO	
 	glm::mat4 viewMatrix = camera.getViewMatrix();
-	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 20.0f);
+	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 50.0f);
 	updateUniformBuffer(currentFrame, viewMatrix, projectionMatrix);
 
 
@@ -276,6 +276,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+	//TEMPORARY MOVE OPERATION
 	if (scene.getSelectedObj())
 	{
 		if (moveFlag && editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
@@ -286,7 +287,10 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 			ct = pick.y;
 		}
 	}
+
 	
+	
+	//DRAW OBJECTS	
 	for (auto& RO : renderObjects)
 	{
 		RO.sync(context, commandPool, editorState==EditorState::Edit);
@@ -298,6 +302,22 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 		}
 	}
+	//DRAW GRID
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shaderResources.GridShaderPl);
+
+	GridPushConstants gridPc{};
+	gridPc.invViewProj = invViewProj;
+	gridPc.cameraPos = camera.getPosition();
+	gridPc.cellSize = 1.0f;
+	gridPc.fadeNear = 10.0f;
+	gridPc.fadeFar = 50.0f;
+	vkCmdPushConstants(commandBuffer, shaderResources.GridShaderLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GridPushConstants), &gridPc);
+
+	VkDescriptorSet gridSets[] = { frameData.cameraDescriptorSets[currentFrame] };
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shaderResources.GridShaderLayout, 0, 1, gridSets, 0, nullptr);
+
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
 
 	vkCmdEndRendering(commandBuffer);
 }
@@ -359,7 +379,7 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 	{
 		//safe bc in edit mode we always have a selected object
 		//checked in drawloop (if scene.selectedObj() != 0)
-		RenderObject* obj;
+		RenderObject* obj = nullptr;
 		for (auto& RO : renderObjects)
 		{
 			RO.gpuCache.dataMesh->id == scene.getSelectedObjId() ? obj = &RO : void();
@@ -380,6 +400,7 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 
 	vkCmdEndRendering(cmdBuffer);
 
+	//load part of the id texture into buffer to be picked from by pickId()
 	if (pick.wasClicked)
 	{
 		ImageUtils::transitionImageLayout(context, cmdBuffer, idPass.idTextures[currentFrame], VK_FORMAT_R32_UINT,
@@ -431,6 +452,7 @@ void VulkanRenderer::recordOutlinePass(VkCommandBuffer& cmdBuffer, uint32_t curr
 	pc.texSize = glm::ivec2((int)viewportExtent.width, (int)viewportExtent.height);
 	vkCmdPushConstants(cmdBuffer, shaderResources.OutlineShaderLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(OutlinePushConstants), &pc);
 
+	//3 vertices, 1 instance, first vertex 0, first instance 0
 	vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // fullscreen triangle, built from gl_VertexIndex in the vertex shader
 
 	vkCmdEndRendering(cmdBuffer);
@@ -569,6 +591,7 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMa
 	ubo.view = viewMatrix;
 	ubo.proj = projectionMatrix;
 	ubo.proj[1][1] *= -1;
+	invViewProj = glm::inverse(ubo.proj * ubo.view);
 
 	memcpy(frameData.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
