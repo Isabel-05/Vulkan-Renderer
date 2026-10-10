@@ -3,19 +3,16 @@
 void RenderObject::init(VulkanContext& context, CommandPool& cmdPool, std::shared_ptr<DMesh> dmesh)
 {
 	gpuCache.init(context, cmdPool, dmesh);
-
-	scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	position = glm::vec3(0.0f, 0.0f, 1.0f);
-	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 }
 
 glm::mat4 RenderObject::getModelMatrix() const
 {
-	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
-	modelMatrix = glm::scale(modelMatrix, scale);
+	DMesh dmesh = *gpuCache.dataMesh;
+	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), dmesh.position);
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(dmesh.rotation.x), glm::vec3(1, 0, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(dmesh.rotation.y), glm::vec3(0, 1, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(dmesh.rotation.z), glm::vec3(0, 0, 1));
+	modelMatrix = glm::scale(modelMatrix, dmesh.scale);
 	return modelMatrix;
 }
 

@@ -33,8 +33,13 @@ public:
 	void init(uint32_t _id, std::string mPath);
 	void loadObj(const std::string& path);
 
+	//Attribs
 	uint32_t id;
 	MeshVersion version; //all flags init as 1 / gpu mesh inits as 0
+
+	glm::vec3 position;
+	glm::vec3 rotation;
+	glm::vec3 scale;
 	
 	//mesh data
 	std::vector<glm::vec3> positions;

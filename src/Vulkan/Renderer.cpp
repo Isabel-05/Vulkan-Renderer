@@ -731,13 +731,15 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 
 void VulkanRenderer::onMouseWheel(double xoffset, double yoffset)
 {
-	if (ImGui::GetIO().WantCaptureMouse)
+	if (ImGui::GetIO().WantCaptureMouse && !guiRenderer->isViewportHovered())
 	{
 		// Pass mouse wheel input to ImGui for UI interaction
 		ImGuiIO& io = ImGui::GetIO();
 		io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
 		return;
 	}
+
+	camera.processMouseScroll(static_cast<float>(yoffset));
 }
 
 void VulkanRenderer::switchEditorState()

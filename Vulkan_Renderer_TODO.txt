@@ -1,7 +1,5 @@
 NEXT:
 
-- make infinite grid
-
 - move transform to dmesh / object transforms (move, scale)
 
 - Command System // Editing Actions
@@ -14,7 +12,7 @@ NEXT:
 
 (if i have time):
 
-- making the camera better
+- adding pan camera
 
 - add some mesh editing functions
 

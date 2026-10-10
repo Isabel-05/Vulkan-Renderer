@@ -2,13 +2,16 @@
 
 Camera::Camera()
 {
-    position = glm::vec3(8.0f, 0.0f, 0.0f);
+    position = glm::vec3(0.0f);
     up = glm::vec3(0.0f, 1.0f, 0.0f);        // Y-axis as world up
-	horizontalAngle = 0.0f;
-	verticalAngle = 90.0f;
+	horizontalAngle = 23.0f;
+	verticalAngle = 65.0f;
 	radius = 8.0f;
-    zoom = 45.0f;
     mouseSensitivity = 0.2f;
+
+    mousePressed = true;
+	processMouseMovement(0.0f, 0.0f);
+	mousePressed = false;
 }
 
 glm::mat4 Camera::getViewMatrix() const
@@ -59,4 +62,22 @@ void Camera::processMouseMovement(float xOffset, float yOffset, bool constrainPi
 	position.z = radius * sin(glm::radians(horizontalAngle)) * sin(glm::radians(verticalAngle));
 	position.y = radius * cos(glm::radians(verticalAngle));
 
+}
+
+void Camera::processMouseScroll(float yOffset)
+{
+	//distance based zoom
+	radius -= yOffset * 0.7f;
+	if (radius < 5.0f)
+		radius = 5.0f;
+	if (radius > 30.0f)
+		radius = 30.0f;
+
+	//projection matrix based zoom
+	//looked a little weird imo
+	//zoom -= yOffset * 2.0f;
+
+	mousePressed = true;
+	processMouseMovement(0.0f, 0.0f);
+	mousePressed = false;
 }

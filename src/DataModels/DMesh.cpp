@@ -9,6 +9,11 @@
 void DMesh::init(uint32_t _id, std::string mPath)
 {
     id = _id;
+
+	scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	position = glm::vec3(0.0f, 0.0f, 0.0f);
+	rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+
 	loadObj(mPath);
 }
 

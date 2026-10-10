@@ -16,10 +16,6 @@ public:
 
 	std::string name;
 
-	glm::vec3 position;
-	glm::vec3 rotation;
-	glm::vec3 scale;
-
 	GpuMeshCache gpuCache;
 
 	GpuMaterial surfaceMaterial;

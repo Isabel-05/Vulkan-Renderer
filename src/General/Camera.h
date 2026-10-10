@@ -21,7 +21,7 @@ private:
     float radius;
 
     float mouseSensitivity; 
-    float zoom;
+	float zoom = 45.0f;
 
 public:
 
@@ -39,6 +39,5 @@ public:
 
     glm::vec3 getPosition() const { return position; }
     glm::vec3 getFront() const { return front; }
-    float getZoom() const { return zoom; }
 };
 
