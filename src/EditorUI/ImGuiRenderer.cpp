@@ -55,9 +55,11 @@ void ImGuiRenderer::init(float width, float height)
 	// Initialize ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	
 
 	// Configure ImGui
 	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->TexDesiredFormat = ImTextureFormat_RGBA32;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable keyboard controls
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable multi-viewport support
@@ -389,7 +391,7 @@ void ImGuiRenderer::updateTexture(CommandPool& cmdPool, ImTextureData* tex)
 		if (!fontData) return;
 
 		VkDeviceSize uploadSize = texWidth * texHeight * tex->BytesPerPixel;
-		VkFormat format = (tex->BytesPerPixel == 4) ? VkFormat::VK_FORMAT_B8G8R8A8_UNORM : VkFormat::VK_FORMAT_R8_UNORM;
+		VkFormat format = (tex->BytesPerPixel == 4) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8_UNORM;
 
 		if (tex->Status == ImTextureStatus_WantCreate) {
 
