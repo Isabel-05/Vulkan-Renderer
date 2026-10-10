@@ -482,7 +482,7 @@ void ImGuiRenderer::loadOutputImages(VkSampler& sampler, std::vector<VkImageView
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocInfo.descriptorPool = descriptorPool;
 		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = &descriptorSetLayout;   // YOUR layout, COMBINED_IMAGE_SAMPLER
+		allocInfo.pSetLayouts = &descriptorSetLayout;
 
 		if (vkAllocateDescriptorSets(context->logicalDevice, &allocInfo, &viewportDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate viewport descriptor set!");
@@ -771,7 +771,7 @@ void ImGuiRenderer::recordCmdBuffer(uint32_t currentFrame, VkCommandBuffer& comm
 	colorAttachment.imageView = imageView;                      // your current frame's image view
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;             // LOAD to not clear the 3D scene underneath
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_NONE;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	VkRenderingInfo renderingInfo{};

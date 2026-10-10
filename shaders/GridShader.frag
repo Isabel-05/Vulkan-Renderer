@@ -67,8 +67,8 @@ void main()
     }
 
     // axis highlights: world x==0 is the Z axis (blue), world z==0 is the X axis (red)
-    float zAxisWidth = max(fwidth(hit.x) * 1.5, 1e-6);
-    float xAxisWidth = max(fwidth(hit.z) * 1.5, 1e-6);
+    float zAxisWidth = max(fwidth(hit.x) * 2.0, 1e-6);
+    float xAxisWidth = max(fwidth(hit.z) * 2.0, 1e-6);
     float onZAxis = 1.0 - clamp(abs(hit.x) / zAxisWidth, 0.0, 1.0);
     float onXAxis = 1.0 - clamp(abs(hit.z) / xAxisWidth, 0.0, 1.0);
 
