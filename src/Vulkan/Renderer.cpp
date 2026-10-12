@@ -286,7 +286,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 		RO.sync(context, commandPool, editorState==EditorState::Edit);
 		RO.drawSurface(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 		
-		if (editorState == EditorState::Edit) //todo: and object is selected
+		if (editorState == EditorState::Edit && RO.gpuCache.dataMesh->id == scene.getSelectedObjId()) //todo: and object is selected
 		{
 			RO.drawEdges(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);
 			RO.drawPoints(context, commandPool, commandBuffer, frameData.cameraDescriptorSets[currentFrame]);

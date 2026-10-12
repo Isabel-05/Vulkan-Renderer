@@ -756,9 +756,6 @@ void ImGuiRenderer::createPropertiesPanel(Scene& scene)
 
 	if (selected)
 	{
-		ImGui::Text("Object %u", selected->id);
-		ImGui::Separator();
-
 		//sharpFaces is per-face, but for this simple toggle we treat
 		//the whole object as one unit and just look at the first face
 		bool smooth = !selected->sharpFaces.empty() && selected->sharpFaces[0] == 0;
