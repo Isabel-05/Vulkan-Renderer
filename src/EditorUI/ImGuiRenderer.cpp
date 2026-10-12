@@ -4,7 +4,7 @@
 #include "Image.h"
 #include "Scene.h"
 
-
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include "imgui_internal.h"
@@ -533,14 +533,67 @@ void ImGuiRenderer::reloadOutputImages(VkSampler& sampler, std::vector<VkImageVi
 	}
 }
 
-void ImGuiRenderer::newFrame(CommandPool& cmdPool, uint32_t currentFrame, Scene& scene, EditorState& editorState)
+static bool ToggleSwitch(const char* id, bool* v)
+{
+	ImVec2 p = ImGui::GetCursorScreenPos();
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+	float height = ImGui::GetFrameHeight();
+	float width = height * 1.8f;
+	float radius = height * 0.5f;
+
+	ImGui::InvisibleButton(id, ImVec2(width, height));
+
+	bool changed = false;
+	if (ImGui::IsItemClicked())
+	{
+		*v = !*v;
+		changed = true;
+	}
+
+	float t = *v ? 1.0f : 0.0f;
+
+	ImU32 bgCol = ImGui::GetColorU32(*v ? ImVec4(0.42f, 0.42f, 0.9f, 1.0f) : ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
+	drawList->AddRectFilled(p, ImVec2(p.x + width, p.y + height), bgCol, radius);
+
+	float knobX = p.x + radius + t * (width - height);
+	drawList->AddCircleFilled(ImVec2(knobX, p.y + radius), radius - 2.0f, IM_COL32(230, 230, 230, 255));
+
+	return changed;
+}
+
+void ImGuiRenderer::newFrame(uint32_t currentFrame, Scene& scene, EditorState& editorState)
 {
 	ImGui::NewFrame();
 
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("File")) {
 			if (ImGui::MenuItem("Import")) {
-				// Handle Quit
+
+				const char* filterPatterns[] = { "*.obj" };
+				const char* path = tinyfd_openFileDialog(
+					"Import OBJ",               // title
+					"",                          // default path/file
+					1,                           // number of filter patterns
+					filterPatterns,
+					"Wavefront OBJ (*.obj)",     // filter description
+					0                            // allow multiple selects
+				);
+
+				if (path)
+				{
+					try
+					{
+						DMesh dmesh;
+						dmesh.init(scene.getNextObjectId(), path);
+						scene.addObj(dmesh);
+						scene.setSelectedObjId(dmesh.id);
+					}
+					catch (const std::runtime_error& e)
+					{
+						tinyfd_messageBox("Import failed", e.what(), "ok", "error", 1);
+					}
+				}
 			}
 			if (ImGui::MenuItem("Export as OBJ", "Ctrl+S")) {
 				// Handle Quit
@@ -646,12 +699,79 @@ void ImGuiRenderer::createObjectList(Scene& scene)
 {
 	ImGui::Begin("Objects");
 
+	if (ImGui::Button("+"))
+	{
+		ImGui::OpenPopup("AddObjectPopup");
+	}
+
+	if (ImGui::BeginPopup("AddObjectPopup"))
+	{
+		if (ImGui::Selectable("Cube"))
+		{
+			uint32_t newId = scene.getNextObjectId();
+
+			DMesh dmesh;
+			dmesh.init(newId, baseObjectModelPath);
+			scene.addObj(dmesh);
+			scene.setSelectedObjId(newId);
+		}
+		ImGui::EndPopup();
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("-"))
+	{
+		scene.removeObj(scene.getSelectedObjId());
+	}
+
+	ImGui::Separator();
+
+	/////////////
+	//OBJECT LIST
+
+	for (auto& obj : scene.objList)
+	{
+		bool isSelected = (obj->id == scene.getSelectedObjId());
+
+		std::string label = "Object " + std::to_string(obj->id);
+
+		ImGui::PushID(obj->id);
+		if (ImGui::Selectable(label.c_str(), isSelected))
+		{
+			scene.setSelectedObjId(obj->id);
+		}
+		ImGui::PopID();
+	}
+
+
 	ImGui::End();
 }
 
 void ImGuiRenderer::createPropertiesPanel(Scene& scene)
 {
 	ImGui::Begin("Properties");
+
+	std::shared_ptr<DMesh> selected = scene.getSelectedObj();
+
+	if (selected)
+	{
+		ImGui::Text("Object %u", selected->id);
+		ImGui::Separator();
+
+		//sharpFaces is per-face, but for this simple toggle we treat
+		//the whole object as one unit and just look at the first face
+		bool smooth = !selected->sharpFaces.empty() && selected->sharpFaces[0] == 0;
+
+		ImGui::Text("Smooth Shading");
+		ImGui::SameLine();
+
+		if (ToggleSwitch("##ShadingToggle", &smooth))
+		{
+			std::fill(selected->sharpFaces.begin(), selected->sharpFaces.end(), smooth ? 0 : 1);
+			selected->markShadingDirty();
+		}
+	}
 
 	ImGui::End();
 }

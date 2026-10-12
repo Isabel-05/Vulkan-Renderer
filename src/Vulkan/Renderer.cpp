@@ -87,17 +87,17 @@ void VulkanRenderer::cleanup()
 
 void VulkanRenderer::drawFrame()
 {
-	if (scene.isDirty) {
-		updateObjects();
-		scene.isDirty = false;
-	}
-
 	vkWaitForFences(context.logicalDevice, 1, &frameData.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(context.logicalDevice, swapChain.handle, UINT64_MAX, frameData.imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	guiRenderer->newFrame(commandPool, currentFrame, scene, editorState);
+	guiRenderer->newFrame(currentFrame, scene, editorState);
+
+	if (scene.isDirty) {
+		updateObjects();
+		scene.isDirty = false;
+	}
 
 	// VIEWPORT RESIZE HANDLING	
 	if (checkViewportResize())
@@ -272,18 +272,22 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
-	//VkExtent2D imageExtent = { guiRenderer->getViewportSize().x, guiRenderer->getViewportSize().y };
 	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 	//TEMPORARY MOVE OPERATION
-	if (scene.getSelectedObj())
+	if (moveFlag && scene.getSelectedObj())
 	{
-		if (moveFlag && editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
+		if (editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
 		{
 			uint32_t id = scene.getSelectedObj()->getSelectedVertIds()[0];
 			scene.getSelectedObj()->positions[id].y += (ct - pick.y)*0.005;
 			scene.getSelectedObj()->markPositionsDirty();
+			ct = pick.y;
+		}
+		if (editorState == EditorState::Object)
+		{
+			scene.getSelectedObj()->position.y += (ct - pick.y) * 0.005;
 			ct = pick.y;
 		}
 	}
@@ -598,6 +602,8 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage, glm::mat4 viewMa
 
 void VulkanRenderer::updateObjects()
 {
+	vkDeviceWaitIdle(context.logicalDevice);
+
 	for (auto& obj : renderObjects)
 	{
 		obj.cleanup(context);

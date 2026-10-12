@@ -16,6 +16,6 @@ layout(location = 0) out flat uint outSelected;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * pc.model * vec4(inPosition, 1.0);
-    gl_PointSize = 8.0;
+    gl_PointSize = 7.0;
     outSelected = inSelected;
 }

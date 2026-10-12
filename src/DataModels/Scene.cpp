@@ -12,7 +12,7 @@ void Scene::removeObj(uint32_t index)
 	{
 		if (objList[i]->id == index)
 		{
-			objList.erase(objList.begin() + i - 1);
+			objList.erase(objList.begin() + i);
 		}
 	}
 
@@ -39,4 +39,14 @@ std::shared_ptr<DMesh> Scene::getSelectedObj()
 		}
 	}
 	return nullptr;
+}
+
+uint32_t Scene::getNextObjectId()
+{
+	uint32_t newId = 1;
+	for (auto& obj : objList)
+	{
+		if (obj->id >= newId) newId = obj->id + 1;
+	}
+	return newId;
 }
