@@ -84,7 +84,11 @@ private:
 	float inputScale = 1.0f;
 
 	//Temp Bullshit
-	float ct = 0;
+	void handleMove();
+	float yct = 0;
+	float xct = 0;
 	bool moveFlag = false;
+	glm::vec3 cameraUp;
+	glm::vec3 cameraRight;
 };
 

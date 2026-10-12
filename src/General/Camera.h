@@ -10,11 +10,11 @@ class Camera
 {
 private:
 
-    glm::vec3 position;   
-    glm::vec3 front;       
-    glm::vec3 up ;        
-    glm::vec3 right;      
-    glm::vec3 worldUp;      
+    glm::vec3 position;
+    glm::vec3 front;
+    glm::vec3 up;
+    glm::vec3 right;
+    glm::vec3 worldUp;
 
     float horizontalAngle;
 	float verticalAngle;
@@ -38,6 +38,7 @@ public:
     bool mousePressed = false;
 
     glm::vec3 getPosition() const { return position; }
-    glm::vec3 getFront() const { return front; }
+    glm::vec3 getFront();
+    glm::vec3 getRight();
+    glm::vec3 getUp();
 };
-

@@ -103,6 +103,9 @@ void VulkanRenderer::drawFrame()
 	if (checkViewportResize())
 		resizeViewportResources();
 
+	//temp move
+	//handleMove();
+
 	// UPDATE VIEW PROJECTION UBO	
 	glm::mat4 viewMatrix = camera.getViewMatrix();
 	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 50.0f);
@@ -275,24 +278,7 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 	scissor.extent = viewportExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	//TEMPORARY MOVE OPERATION
-	if (moveFlag && scene.getSelectedObj())
-	{
-		if (editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
-		{
-			uint32_t id = scene.getSelectedObj()->getSelectedVertIds()[0];
-			scene.getSelectedObj()->positions[id].y += (ct - pick.y)*0.005;
-			scene.getSelectedObj()->markPositionsDirty();
-			ct = pick.y;
-		}
-		if (editorState == EditorState::Object)
-		{
-			scene.getSelectedObj()->position.y += (ct - pick.y) * 0.005;
-			ct = pick.y;
-		}
-	}
-
-	
+	handleMove();
 	
 	//DRAW OBJECTS	
 	for (auto& RO : renderObjects)
@@ -324,6 +310,38 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 
 
 	vkCmdEndRendering(commandBuffer);
+}
+
+void VulkanRenderer::handleMove()
+{
+	//TEMPORARY MOVE OPERATION
+	if (moveFlag && scene.getSelectedObj())
+	{
+		if (editorState == EditorState::Edit && !scene.getSelectedObj()->getSelectedVertIds().empty())
+		{
+			std::shared_ptr<DMesh> dmesh = scene.getSelectedObj();
+			uint32_t id = dmesh->getSelectedVertIds()[0];
+			float yrate = (yct - pick.y) * -0.005;
+			float xrate = (xct - pick.x) * -0.005;
+			dmesh->positions[id].x += ((xrate * cameraRight.x) + (yrate * cameraUp.x));
+			dmesh->positions[id].y += ((xrate * cameraRight.y) + (yrate * cameraUp.y));
+			dmesh->positions[id].z += ((xrate * cameraRight.z) + (yrate * cameraUp.z));
+			dmesh->markPositionsDirty();
+			yct = pick.y;
+			xct = pick.x;
+		}
+		if (editorState == EditorState::Object)
+		{
+			std::shared_ptr<DMesh> dmesh = scene.getSelectedObj();
+			float yrate = (yct - pick.y) * -0.005;
+			float xrate = (xct - pick.x) * -0.005;
+			dmesh->position.x += ((xrate * cameraRight.x) + (yrate * cameraUp.x));
+			dmesh->position.y += ((xrate * cameraRight.y) + (yrate * cameraUp.y));
+			dmesh->position.z += ((xrate * cameraRight.z) + (yrate * cameraUp.z));
+			yct = pick.y;
+			xct = pick.x;
+		}
+	}
 }
 
 void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFrame, VkDescriptorSet& cameraDS)
@@ -667,7 +685,10 @@ void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 	if (scancode == 34 && action == 1)
 	{
 		moveFlag = true;
-		ct = pick.y;
+		yct = pick.y;
+		xct = pick.x;
+		cameraUp = camera.getUp();
+		cameraRight = camera.getRight();
 	}
 	//pressed tab
 	if (scancode == 15 && action == 1)

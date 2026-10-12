@@ -28,13 +28,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 FetchContent_Declare(
-    EnTT
-    GIT_REPOSITORY https://github.com/skypjack/entt.git
-    GIT_TAG        v3.16.0
-)
-FetchContent_MakeAvailable(EnTT)
-
-FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG        docking
@@ -88,7 +81,6 @@ target_link_libraries(VulkanRenderer PRIVATE
     Vulkan::Vulkan
     glfw
     glm::glm
-    EnTT::EnTT
     imgui
     tinyfiledialogs
 )

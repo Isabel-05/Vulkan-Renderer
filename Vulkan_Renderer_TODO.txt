@@ -1,20 +1,8 @@
 NEXT:
 
-- move transform to dmesh / object transforms (move, scale)
-
 - Command System // Editing Actions
 
-- Editor UI:
-	- Smooth/Flat shading toggle in properties 
-	- Object list / adding primitives
-	- make import/export obj work
-
-
-(if i have time):
-
-- adding pan camera
-
-- add some mesh editing functions
+- Making a floating Camera
 
 - implement a mirror modifier
 
@@ -30,26 +18,22 @@ or a deletion queue
 
 FUTURE:
 
-- Modifiers / Dependency Graph
+- Material Node editor / Lighting Models/PBR
 
 - Particle system // PS editor
 
-- Lighting Models/PBR
-
-- Path tracer
-
-- Material Node editor
-
-- Simulations
+- Path tracer // non-real-time renderer
 
 - Skeletal Animation // GLTF support
+
+- Simulations
 
 
 QUALITY OF LIFE:
 
 - Make UI look nicer
 
-- add renaming with right click on object
+- add renaming
 
 
 REMINDERS:

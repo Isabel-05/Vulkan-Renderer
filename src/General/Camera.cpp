@@ -4,6 +4,7 @@ Camera::Camera()
 {
     position = glm::vec3(0.0f);
     up = glm::vec3(0.0f, 1.0f, 0.0f);        // Y-axis as world up
+    worldUp = glm::vec3(0.0f, 1.0f, 0.0f);        // Y-axis as world up
 	horizontalAngle = 23.0f;
 	verticalAngle = 65.0f;
 	radius = 8.0f;
@@ -80,4 +81,19 @@ void Camera::processMouseScroll(float yOffset)
 	mousePressed = true;
 	processMouseMovement(0.0f, 0.0f);
 	mousePressed = false;
+}
+
+glm::vec3 Camera::getFront()
+{
+	return glm::normalize(-position);
+}
+
+glm::vec3 Camera::getRight()
+{
+	return glm::normalize(glm::cross(getFront(), worldUp));
+}
+
+glm::vec3 Camera::getUp()
+{
+	return glm::normalize(glm::cross(getFront(), getRight()));
 }
