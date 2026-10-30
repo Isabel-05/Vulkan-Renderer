@@ -321,8 +321,8 @@ void VulkanRenderer::handleMove()
 		{
 			std::shared_ptr<DMesh> dmesh = scene.getSelectedObj();
 			uint32_t id = dmesh->getSelectedVertIds()[0];
-			float yrate = (yct - pick.y) * -0.005;
-			float xrate = (xct - pick.x) * -0.005;
+			float yrate = (yct - pick.y) * 0.005 * camera.factor;
+			float xrate = (xct - pick.x) * 0.005 * camera.factor;
 			dmesh->positions[id].x += ((xrate * cameraRight.x) + (yrate * cameraUp.x));
 			dmesh->positions[id].y += ((xrate * cameraRight.y) + (yrate * cameraUp.y));
 			dmesh->positions[id].z += ((xrate * cameraRight.z) + (yrate * cameraUp.z));
@@ -333,8 +333,8 @@ void VulkanRenderer::handleMove()
 		if (editorState == EditorState::Object)
 		{
 			std::shared_ptr<DMesh> dmesh = scene.getSelectedObj();
-			float yrate = (yct - pick.y) * -0.005;
-			float xrate = (xct - pick.x) * -0.005;
+			float yrate = (yct - pick.y) * 0.005 * camera.factor;
+			float xrate = (xct - pick.x) * 0.005 * camera.factor;
 			dmesh->position.x += ((xrate * cameraRight.x) + (yrate * cameraUp.x));
 			dmesh->position.y += ((xrate * cameraRight.y) + (yrate * cameraUp.y));
 			dmesh->position.z += ((xrate * cameraRight.z) + (yrate * cameraUp.z));

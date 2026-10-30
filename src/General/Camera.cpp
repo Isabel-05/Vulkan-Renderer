@@ -9,6 +9,8 @@ Camera::Camera()
 	verticalAngle = 65.0f;
 	radius = 8.0f;
     mouseSensitivity = 0.2f;
+	
+	factor = -1;
 
     mousePressed = true;
 	processMouseMovement(0.0f, 0.0f);
@@ -51,10 +53,12 @@ void Camera::processMouseMovement(float xOffset, float yOffset, bool constrainPi
 
     if(verticalAngle > 180.0f)
     {
+		factor = 1;
 		up = glm::vec3(0.0f, -1.0f, 0.0f);
 	}
 	else
 	{  
+		factor = -1;
 		up = glm::vec3(0.0f, 1.0f, 0.0f);
 	}
         

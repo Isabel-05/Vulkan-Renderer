@@ -36,6 +36,7 @@ public:
     void processMouseScroll(float yOffset);
 
     bool mousePressed = false;
+    float factor;
 
     glm::vec3 getPosition() const { return position; }
     glm::vec3 getFront();
