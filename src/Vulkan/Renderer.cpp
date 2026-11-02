@@ -715,11 +715,13 @@ void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 void VulkanRenderer::onMouseMove(double xpos, double ypos, float xoffset, float yoffset)
 {
 	camera.processMouseMovement(xoffset, yoffset);
-	guiRenderer->handleMousePos(static_cast<float>(xpos * inputScale), static_cast<float>(ypos * inputScale));
+	float scaledX = static_cast<float>(xpos * inputScale);
+	float scaledY = static_cast<float>(ypos * inputScale);
+	guiRenderer->handleMousePos(scaledX, scaledY);
 	if (!pick.wasClicked)
 	{
-		pick.x = xpos;
-		pick.y = ypos;
+		pick.x = scaledX;
+		pick.y = scaledY;
 	}
 }
 
@@ -746,8 +748,8 @@ void VulkanRenderer::onMousePressed(int button, int action, int mods)
 		pick.wasClicked = true;
 
 		//convert from glfw global input to viewport/image coordinates
-		float localX = ((float)pick.x - guiRenderer->viewportScreenPos.x) * inputScale;
-		float localY = ((float)pick.y - guiRenderer->viewportScreenPos.y) * inputScale;
+		float localX = ((float)pick.x - guiRenderer->viewportScreenPos.x);
+		float localY = ((float)pick.y - guiRenderer->viewportScreenPos.y);
 
 		//make sure inputs are in bounds of the viewport
 		float maxX = (float)viewportExtent.width - 1.0f;
