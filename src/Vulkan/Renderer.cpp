@@ -404,7 +404,11 @@ void VulkanRenderer::recordIdPass(VkCommandBuffer& cmdBuffer, uint32_t currentFr
 		RenderObject* obj = nullptr;
 		for (auto& RO : renderObjects)
 		{
-			RO.gpuCache.dataMesh->id == scene.getSelectedObjId() ? obj = &RO : void();
+			if (RO.gpuCache.dataMesh->id == scene.getSelectedObjId())
+			{
+				obj = &RO;
+				break;
+			}
 		}
 		if (!obj) return;
 
@@ -681,8 +685,18 @@ void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 	//action = 1 means press 0 means release
 	//std::cout << scancode << std::endl;
 
+	int g = 34;
+	#ifdef __APPLE__
+		g = 5;
+	#endif
+
+	int tab = 15;
+	#ifdef __APPLE__
+		tab = 48;
+	#endif
+
 	//pressed G
-	if (scancode == 34 && action == 1)
+	if (scancode == g && action == 1)
 	{
 		moveFlag = true;
 		yct = pick.y;
@@ -691,7 +705,7 @@ void VulkanRenderer::onKey(int key, int scancode, int action, int mods)
 		cameraRight = camera.getRight();
 	}
 	//pressed tab
-	if (scancode == 15 && action == 1)
+	if (scancode == tab && action == 1)
 		switchEditorState();
 
 
