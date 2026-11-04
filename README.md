@@ -22,7 +22,7 @@ So i ended up going with a 3D DCC similar to Blender so i could spend more time 
 - Spawning cubes
 - Importing .obj (wavefront) files
 - Object and Vertex selection (and outline shader in Object Mode)
-- Screen space move on objects and vertices
+- Moving Objects and Vertices parallel to the view/camera
 - Smooth and flat shading switch
 
 ## Future of the Project
