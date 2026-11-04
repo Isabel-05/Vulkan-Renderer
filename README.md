@@ -1,5 +1,7 @@
 # 3D Modeling DCC
 
+## Project Background
+
 ##### This is a personal project of mine that started out as a basic vulkan-tutorial.com renderer. 
 ##### My initial idea was to pivot this into a Game Engine but after I started reading "Game Engine Architecture" by Jason Gregory i felt like it was a bit too big in scope for my first Vulkan project.
 
@@ -8,7 +10,7 @@
 
 ## Current Functionality
 
-##### A short GIF showing off the Programs functionality
+##### Here's a GIF to show how the program looks like visually when you run it
 
 ![alt text](https://github.com/Isabel-05/Vulkan-Renderer/blob/master/usage.gif "GIF")
 
@@ -22,6 +24,8 @@
 - Object and Vertex selection (and outline shader in Object Mode)
 - Screen space move on objects and vertices
 - Smooth and flat shading switch
+
+## Future of the Project
 
 #### I want to continue to work on this as a portfolio project in the near Future and all the way through University to add things such as:
 - more mesh editing functions
