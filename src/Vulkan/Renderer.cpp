@@ -103,9 +103,6 @@ void VulkanRenderer::drawFrame()
 	if (checkViewportResize())
 		resizeViewportResources();
 
-	//temp move
-	//handleMove();
-
 	// UPDATE VIEW PROJECTION UBO	
 	glm::mat4 viewMatrix = camera.getViewMatrix();
 	glm::mat4 projectionMatrix = camera.getProjectionMatrix((float)viewportExtent.width / (float)viewportExtent.height, 0.1f, 50.0f);
@@ -636,7 +633,6 @@ void VulkanRenderer::updateObjects()
 	{
 		RenderObject newRO;
 		newRO.init(context, commandPool, dmesh);
-		newRO.name = dmesh->id;
 
 		GpuMaterial basemat;
 		basemat.pipeline = std::make_shared<VkPipeline>(shaderResources.BaseShaderPl);

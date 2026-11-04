@@ -23,7 +23,7 @@ void RenderObject::sync(VulkanContext& context, CommandPool& cmdPool, bool wantO
 
 void RenderObject::drawSurface(VulkanContext& context, CommandPool& cmdPool, VkCommandBuffer& commandBuffer, VkDescriptorSet& cameraDS)
 {
-	if (gpuCache.surfaceIdxBuffer.count == 0) return;
+	if (gpuCache.surfaceIdxBuffer.count == 0 || !surfaceMaterial.pipeline) return;
 
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *surfaceMaterial.pipeline);
 

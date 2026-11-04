@@ -52,7 +52,6 @@ public:
 
 	std::vector<uint32_t> cornerVerts;
 	std::vector<glm::vec2> cornerUv;
-	std::vector<uint32_t>  cornerEdges; //not needed/used yet but might be useful in the future
 
 	////////////////////
 	// HELPER FUNCTIONS

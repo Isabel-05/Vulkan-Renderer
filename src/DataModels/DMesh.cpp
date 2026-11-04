@@ -75,46 +75,44 @@ void DMesh::loadObj(const std::string& path)
 	buildEdgesFromFaces();
 }
 
+
+uint64_t keyOf(uint32_t a, uint32_t b)
+{
+	uint32_t low = std::min(a, b), high = std::max(a, b);
+	return (uint64_t(low) << 32) | uint64_t(high);
+}
+
 void DMesh::buildEdgesFromFaces()
 {
 	edges.clear();
-	cornerEdges.assign(cornerVerts.size(), 0);
 
+	//lookup table to not add duplicated edges
 	std::unordered_map<uint64_t, uint32_t> edgeLookup;
 	edgeLookup.reserve(cornerVerts.size());
 
-	auto keyOf = [](uint32_t a, uint32_t b) -> uint64_t
-		{
-			uint32_t lo = std::min(a, b), hi = std::max(a, b);
-			return (uint64_t(lo) << 32) | uint64_t(hi);
-		};
-
-	for (uint32_t f = 0; f < getFaceCount(); f++)
+	//loop over all faces in the mesh
+	for (uint32_t faceId = 0; faceId < getFaceCount(); faceId++)
 	{
-		uint32_t start = faceOffsets[f];
-		uint32_t n = getFaceSize(f);
+		uint32_t currFace = faceOffsets[faceId];
+		uint32_t numIdx = getFaceSize(faceId);
 
-		for (uint32_t i = 0; i < n; i++)
+		//loop through all indices of the face
+		for (uint32_t idx = 0; idx < numIdx; idx++)
 		{
-			uint32_t c0 = start + i;
-			uint32_t c1 = start + (i + 1) % n;
-			uint32_t v0 = cornerVerts[c0];
-			uint32_t v1 = cornerVerts[c1];
+			//get the next two vertices (ie the next edge)
+			uint32_t v0 = cornerVerts[currFace + idx];
+			uint32_t v1 = cornerVerts[currFace + (idx + 1) % numIdx];
 
+			//make the edge key and check if it already exists
 			uint64_t key = keyOf(v0, v1);
 			auto it = edgeLookup.find(key);
-			uint32_t edgeIdx;
+
+			//if the edge doesnt exist yet, add it to the edge list and the lookup table
 			if (it == edgeLookup.end())
 			{
-				edgeIdx = (uint32_t)edges.size();
 				edges.push_back({ std::min(v0, v1), std::max(v0, v1) });
-				edgeLookup.emplace(key, edgeIdx);
+				edgeLookup.emplace(key, (uint32_t)edges.size());
 			}
-			else
-			{
-				edgeIdx = it->second;
-			}
-			cornerEdges[c0] = edgeIdx;
 		}
 	}
 }

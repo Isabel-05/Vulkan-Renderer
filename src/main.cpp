@@ -26,13 +26,10 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 }
 
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
-	// State persistence for calculating movement deltas
-	// Static variables maintain state between callback invocations
+
 	static bool firstMouse = true; 
 	static float lastX = 0.0f, lastY = 0.0f; 
 
-	// Handle initial mouse position to prevent sudden camera jumps
-	// First callback provides absolute position, not relative movement
 	if (firstMouse) {
 		lastX = xpos; 
 		lastY = ypos;
@@ -40,7 +37,6 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	}
 
 	// Calculate mouse movement deltas since last callback
-	// These deltas represent the amount and direction of mouse movement
 	float xoffset = xpos - lastX;                  
 	float yoffset = lastY - ypos;                   
 
@@ -49,7 +45,6 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	lastY = ypos;
 
 	// Convert mouse movement to camera rotation
-	// Delta values drive continuous camera orientation changes
 	auto app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 	app->onMouseMove(xpos, ypos, xoffset, yoffset);
 }
@@ -103,11 +98,6 @@ int main()
 	//event loop until user closes window
 	while (!glfwWindowShouldClose(window)) 
 	{
-		//static auto startTime = std::chrono::high_resolution_clock::now();
-
-		//auto currentTime = std::chrono::high_resolution_clock::now();
-		//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
 		glfwPollEvents();
 
 		renderer.drawFrame();

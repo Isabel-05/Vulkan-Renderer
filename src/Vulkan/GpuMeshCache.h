@@ -28,15 +28,16 @@ struct GpuBuffer {
 		if (needed > capacity)
 		{
 			if (buffer) { vkDestroyBuffer(ctx.logicalDevice, buffer, nullptr); vkFreeMemory(ctx.logicalDevice, memory, nullptr); }
-			BufferUtils::createBuffer(ctx, needed, usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, memory);
+			BufferUtils::createBuffer(ctx, needed, usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, memory);
 			capacity = needed;
 		}
 
-		VkBuffer staging; VkDeviceMemory stagingMem;
-		BufferUtils::createBuffer(ctx, needed, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging, stagingMem);
-		void* mapped; vkMapMemory(ctx.logicalDevice, stagingMem, 0, needed, 0, &mapped);
+		VkBuffer staging; 
+		VkDeviceMemory stagingMem;
+		BufferUtils::createBuffer(ctx, needed, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging, stagingMem);
+
+		void* mapped;
+		vkMapMemory(ctx.logicalDevice, stagingMem, 0, needed, 0, &mapped);
 		memcpy(mapped, data.data(), (size_t)needed);
 		vkUnmapMemory(ctx.logicalDevice, stagingMem);
 
@@ -74,6 +75,25 @@ namespace PointVertexAttribs
 	std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 }
 
+struct CornerTri { uint32_t c0, c1, c2, face; };
+
+struct SurfaceExtract
+{
+	std::vector<GpuSurfaceVertex> vertices;	 //deduplicated by (position, normal, uv)
+	std::vector<uint32_t> indices;	//3 per triangle
+};
+
+struct CornerKey
+{
+	uint32_t vert;
+	glm::vec3 normal;
+	glm::vec2 uv;
+	bool operator==(const CornerKey& o) const
+	{
+		return vert == o.vert && normal == o.normal && uv == o.uv;
+	}
+};
+
 struct GpuMeshCache
 {
 	std::shared_ptr<DMesh> dataMesh;
@@ -82,7 +102,7 @@ struct GpuMeshCache
 	GpuBuffer surfaceVertBuffer;
 	GpuBuffer surfaceIdxBuffer;
 
-	//only datamesh points/edges (for edit moder overlay)
+	//only datamesh points/edges (for edit mode overlay)
 	GpuBuffer pointBuffer;
 	GpuBuffer edgeIdxBuffer;
 
@@ -93,4 +113,11 @@ struct GpuMeshCache
 
 private:
 	MeshVersion synced{ 0, 0, 0, 0, 0 }; //zeros so it doesnt match dmesh version on init
+
+	std::vector<CornerTri> buildCornerTris(const DMesh& mesh);
+	std::vector<glm::vec3> buildCornerNormals(const DMesh& mesh, const std::vector<CornerTri>& tris);
+
+	SurfaceExtract extractSurface(const DMesh& mesh);
+	std::vector<uint32_t> extractEdgeIndices(const DMesh& mesh);
+	std::vector<GpuPointVertex> extractPoints(const DMesh& mesh);
 };
